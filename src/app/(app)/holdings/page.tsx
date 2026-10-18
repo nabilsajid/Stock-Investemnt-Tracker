@@ -306,6 +306,7 @@ export default function HoldingsPage() {
                           <th className="px-3 py-3.5 font-semibold text-right">Sold</th>
                           <th className="px-3 py-3.5 font-semibold text-right">Available</th>
                           <th className="px-3 py-3.5 font-semibold text-right">Avg Cost</th>
+                          <th className="px-3 py-3.5 font-semibold text-right">Min Selling Price</th>
                           <th className="px-4 py-3.5 font-semibold text-center">Actions</th>
                         </tr>
                       </thead>
@@ -348,6 +349,11 @@ export default function HoldingsPage() {
                               {/* Avg Cost */}
                               <td className="px-3 py-3.5 text-right font-medium">
                                 {formatBDT(h.weightedAverageCost)}
+                              </td>
+
+                              {/* Minimum Selling Price */}
+                              <td className="px-3 py-3.5 text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                                {h.availableShares > 0 ? formatBDT(h.breakEvenPrice) : '—'}
                               </td>
 
                               {/* Actions */}
@@ -430,17 +436,23 @@ export default function HoldingsPage() {
                           </div>
 
                           {/* Metric Grid */}
-                          <div className="grid grid-cols-2 gap-2 py-2 px-3 rounded-lg bg-muted/40 text-xs">
+                          <div className="grid grid-cols-3 gap-2 py-2 px-3 rounded-lg bg-muted/40 text-xs">
                             <div>
-                              <div className="text-muted-foreground text-[11px]">Total Purchased</div>
+                              <div className="text-muted-foreground text-[11px]">Available</div>
                               <div className="font-semibold text-foreground">
-                                {formatNumber(h.totalSharesPurchased)}
+                                {formatNumber(h.availableShares)}
                               </div>
                             </div>
-                            <div className="text-right">
+                            <div>
                               <div className="text-muted-foreground text-[11px]">Avg Cost</div>
                               <div className="font-semibold text-foreground">
                                 {formatBDT(h.weightedAverageCost)}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-muted-foreground text-[11px]">Min Selling</div>
+                              <div className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                {h.availableShares > 0 ? formatBDT(h.breakEvenPrice) : '—'}
                               </div>
                             </div>
                           </div>
