@@ -188,16 +188,6 @@ export default function HoldingsPage() {
 
         <div className="flex items-center gap-2.5">
           <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleOpenUpdatePrice()}
-            className="gap-1.5 shadow-sm"
-          >
-            <RefreshCw className="h-4 w-4 text-muted-foreground" />
-            <span className="hidden sm:inline">Update</span> Prices
-          </Button>
-
-          <Button
             size="sm"
             onClick={() => handleOpenBuy()}
             className="gap-1.5 shadow-sm"
@@ -246,25 +236,6 @@ export default function HoldingsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {/* Exchange Filter Tabs */}
-              <Tabs
-                value={exchangeFilter}
-                onValueChange={(val) => setExchangeFilter(val as 'ALL' | 'DSE' | 'CSE')}
-                className="w-auto"
-              >
-                <TabsList className="h-10">
-                  <TabsTrigger value="ALL" className="text-xs px-3">
-                    All
-                  </TabsTrigger>
-                  <TabsTrigger value="DSE" className="text-xs px-3">
-                    DSE
-                  </TabsTrigger>
-                  <TabsTrigger value="CSE" className="text-xs px-3">
-                    CSE
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-
               {/* Sort By Select */}
               <div className="w-[180px]">
                 <Select
@@ -331,15 +302,10 @@ export default function HoldingsPage() {
                       <thead className="bg-muted/50 text-xs uppercase text-muted-foreground font-medium border-b">
                         <tr>
                           <th className="px-4 py-3.5 font-semibold">Company</th>
-                          <th className="px-3 py-3.5 font-semibold text-center">Exch</th>
                           <th className="px-3 py-3.5 font-semibold text-right">Purchased</th>
                           <th className="px-3 py-3.5 font-semibold text-right">Sold</th>
                           <th className="px-3 py-3.5 font-semibold text-right">Available</th>
                           <th className="px-3 py-3.5 font-semibold text-right">Avg Cost</th>
-                          <th className="px-3 py-3.5 font-semibold text-right">Break-Even</th>
-                          <th className="px-3 py-3.5 font-semibold text-right">Current Price</th>
-                          <th className="px-4 py-3.5 font-semibold text-right">Market Value</th>
-                          <th className="px-4 py-3.5 font-semibold text-right">Unrealized P/L</th>
                           <th className="px-4 py-3.5 font-semibold text-center">Actions</th>
                         </tr>
                       </thead>
@@ -364,16 +330,6 @@ export default function HoldingsPage() {
                                 </div>
                               </td>
 
-                              {/* Exchange */}
-                              <td className="px-3 py-3.5 text-center">
-                                <Badge
-                                  variant="outline"
-                                  className="text-[11px] font-medium uppercase tracking-wider"
-                                >
-                                  {h.company.exchange}
-                                </Badge>
-                              </td>
-
                               {/* Purchased */}
                               <td className="px-3 py-3.5 text-right text-muted-foreground">
                                 {formatNumber(h.totalSharesPurchased)}
@@ -392,50 +348,6 @@ export default function HoldingsPage() {
                               {/* Avg Cost */}
                               <td className="px-3 py-3.5 text-right font-medium">
                                 {formatBDT(h.weightedAverageCost)}
-                              </td>
-
-                              {/* Break-Even Price */}
-                              <td className="px-3 py-3.5 text-right text-muted-foreground">
-                                {formatBDT(h.breakEvenPrice)}
-                              </td>
-
-                              {/* Current Price */}
-                              <td className="px-3 py-3.5 text-right font-medium">
-                                {hasPrice ? (
-                                  formatBDT(h.marketPrice!.price)
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenUpdatePrice(h.company.id);
-                                    }}
-                                    className="text-xs text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1"
-                                  >
-                                    <span>Not set</span>
-                                  </button>
-                                )}
-                              </td>
-
-                              {/* Market Value */}
-                              <td className="px-4 py-3.5 text-right font-semibold text-foreground">
-                                {h.currentMarketValue ? formatBDT(h.currentMarketValue) : '—'}
-                              </td>
-
-                              {/* Unrealized P/L */}
-                              <td className="px-4 py-3.5 text-right">
-                                {h.unrealizedPL !== null && h.unrealizedPL !== undefined ? (
-                                  <div className="flex flex-col items-end">
-                                    <span className={`font-semibold ${plColor}`}>
-                                      {formatBDT(h.unrealizedPL)}
-                                    </span>
-                                    <span className={`text-xs font-medium ${plColor}`}>
-                                      {formatPercent(h.unrealizedPLPercent)}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">—</span>
-                                )}
                               </td>
 
                               {/* Actions */}
@@ -496,65 +408,48 @@ export default function HoldingsPage() {
                         className="cursor-pointer hover:border-primary/50 transition-all shadow-sm"
                       >
                         <CardContent className="p-4 space-y-3">
-                          {/* Card Header: Symbol, Name, Exchange Badge */}
+                          {/* Card Header: Symbol & Name */}
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-base text-foreground">
                                   {h.company.symbol}
                                 </span>
-                                <Badge variant="outline" className="text-[10px] uppercase">
-                                  {h.company.exchange}
-                                </Badge>
                               </div>
                               <p className="text-xs text-muted-foreground truncate max-w-[200px]">
                                 {h.company.name}
                               </p>
                             </div>
 
-                            {/* Market Value & Unrealized P/L at top right */}
                             <div className="text-right">
+                              <span className="text-xs text-muted-foreground">Available</span>
                               <div className="font-bold text-sm text-foreground">
-                                {h.currentMarketValue ? formatBDT(h.currentMarketValue) : '—'}
+                                {formatNumber(h.availableShares)} shares
                               </div>
-                              {h.unrealizedPL !== null && (
-                                <div className={`text-xs font-semibold ${plColor}`}>
-                                  {formatBDT(h.unrealizedPL)} ({formatPercent(h.unrealizedPLPercent)})
-                                </div>
-                              )}
                             </div>
                           </div>
 
                           {/* Metric Grid */}
-                          <div className="grid grid-cols-3 gap-2 py-2 px-3 rounded-lg bg-muted/40 text-xs">
+                          <div className="grid grid-cols-2 gap-2 py-2 px-3 rounded-lg bg-muted/40 text-xs">
                             <div>
-                              <div className="text-muted-foreground text-[11px]">Available</div>
+                              <div className="text-muted-foreground text-[11px]">Total Purchased</div>
                               <div className="font-semibold text-foreground">
-                                {formatNumber(h.availableShares)}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground text-[11px]">Avg Cost</div>
-                              <div className="font-semibold text-foreground">
-                                {formatBDT(h.weightedAverageCost)}
+                                {formatNumber(h.totalSharesPurchased)}
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-muted-foreground text-[11px]">Market Price</div>
+                              <div className="text-muted-foreground text-[11px]">Avg Cost</div>
                               <div className="font-semibold text-foreground">
-                                {hasPrice ? formatBDT(h.marketPrice!.price) : 'Not set'}
+                                {formatBDT(h.weightedAverageCost)}
                               </div>
                             </div>
                           </div>
 
                           {/* Quick Actions Row */}
                           <div
-                            className="flex items-center justify-between pt-1 border-t gap-2"
+                            className="flex items-center justify-end pt-1 border-t gap-2"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <span className="text-[11px] text-muted-foreground">
-                              Break-even: {formatBDT(h.breakEvenPrice)}
-                            </span>
 
                             <div className="flex items-center gap-1.5">
                               <Button

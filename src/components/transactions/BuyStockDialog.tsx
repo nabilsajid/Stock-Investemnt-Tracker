@@ -377,8 +377,8 @@ export function BuyStockDialog({
 
           {/* Symbol & Exchange */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="stock-symbol">Stock Symbol</Label>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="stock-symbol">Stock Symbol (DSE)</Label>
               <Input
                 id="stock-symbol"
                 placeholder="e.g. SQURPHARMA"
@@ -389,27 +389,7 @@ export function BuyStockDialog({
                 required
               />
               {mode === 'existing' && (
-                <p className="text-[11px] text-muted-foreground">Auto-filled from company profile</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="exchange-select">Exchange</Label>
-              <Select
-                value={exchange}
-                onValueChange={(val: ExchangeType) => setExchange(val)}
-                disabled={isSubmitting || (mode === 'existing' && !!selectedCompanyId)}
-              >
-                <SelectTrigger id="exchange-select" className="w-full">
-                  <SelectValue placeholder="Exchange" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DSE">DSE (Dhaka Stock Exchange)</SelectItem>
-                  <SelectItem value="CSE">CSE (Chittagong Stock Exchange)</SelectItem>
-                </SelectContent>
-              </Select>
-              {mode === 'existing' && (
-                <p className="text-[11px] text-muted-foreground">Auto-filled from company</p>
+                <p className="text-[11px] text-muted-foreground">Auto-filled from company profile (Dhaka Stock Exchange)</p>
               )}
             </div>
           </div>

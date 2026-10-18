@@ -238,8 +238,8 @@ export function BuyStockDialog({
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="symbol">Symbol</Label>
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="symbol">Symbol (DSE)</Label>
                 <Input
                   id="symbol"
                   placeholder="e.g. BXPHARMA"
@@ -248,22 +248,6 @@ export function BuyStockDialog({
                   disabled={Boolean(preselectedCompanyId) || isSubmitting}
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="exchange">Exchange</Label>
-                <Select
-                  value={exchange}
-                  onValueChange={(val) => setExchange(val as 'DSE' | 'CSE')}
-                  disabled={Boolean(preselectedCompanyId) || isSubmitting}
-                >
-                  <SelectTrigger id="exchange">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DSE">DSE (Dhaka)</SelectItem>
-                    <SelectItem value="CSE">CSE (Chittagong)</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           )}
