@@ -127,12 +127,15 @@ export default function AdminDashboardPage() {
       if (res.status === 401) {
         setIsAuthenticated(false);
         return;
-      }
       const data = await res.json();
       setProfiles(data.profiles || []);
       setTransactions(data.transactions || []);
+      if (data.errors && (data.errors.profiles || data.errors.transactions)) {
+        console.warn('Admin fetch errors:', data.errors);
+      }
       setIsAuthenticated(true);
-    } catch {
+    } catch (e) {
+      console.error(e);
       setIsAuthenticated(false);
     } finally {
       setLoadingData(false);
