@@ -47,10 +47,34 @@ export async function PATCH(req: Request) {
     }
 
     const supabase = createAdminSupabaseClient();
-    const updateData: Record<string, unknown> = {};
 
-    if (quantity !== undefined) updateData.quantity = Number(quantity);
-    if (price_per_share !== undefined) updateData.price_per_share = Number(price_per_share);
+    // Fetch existing transaction to know its brokerage rate & type
+    const { data: existingTxn, error: fetchErr } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !existingTxn) {
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+    }
+
+    const newQty = quantity !== undefined ? Number(quantity) : Number(existingTxn.quantity);
+    const newPrice = price_per_share !== undefined ? Number(price_per_share) : Number(existingTxn.price_per_share);
+    const rate = Number(existingTxn.brokerage_rate || 0.005);
+    const gross = newQty * newPrice;
+    const brokerage = gross * rate;
+    const net = existingTxn.type === 'BUY' ? gross + brokerage : gross - brokerage;
+
+    const updateData: Record<string, unknown> = {
+      quantity: newQty,
+      price_per_share: newPrice,
+      gross_amount: gross,
+      brokerage_amount: brokerage,
+      net_amount: net,
+      updated_at: new Date().toISOString(),
+    };
+
     if (notes !== undefined) updateData.notes = notes;
 
     const { error } = await supabase.from('transactions').update(updateData).eq('id', id);
