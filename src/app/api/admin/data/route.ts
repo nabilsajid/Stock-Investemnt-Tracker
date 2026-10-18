@@ -17,33 +17,32 @@ export async function GET() {
     const supabase = createAdminSupabaseClient();
 
     // 1. Fetch profiles
-    const { data: profiles, error: profError } = await supabase
+    const profRes = await supabase
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (profError) throw profError;
-
-    // 2. Fetch transactions with company info
-    const { data: transactions, error: txError } = await supabase
+    // 2. Fetch transactions
+    const txRes = await supabase
       .from('transactions')
       .select('*, company:companies(*)')
       .order('date', { ascending: false });
 
-    if (txError) throw txError;
-
     // 3. Fetch companies
-    const { data: companies, error: compError } = await supabase
+    const compRes = await supabase
       .from('companies')
       .select('*')
       .order('name', { ascending: true });
 
-    if (compError) throw compError;
-
     return NextResponse.json({
-      profiles: profiles || [],
-      transactions: transactions || [],
-      companies: companies || [],
+      profiles: profRes.data || [],
+      transactions: txRes.data || [],
+      companies: compRes.data || [],
+      errors: {
+        profiles: profRes.error?.message || null,
+        transactions: txRes.error?.message || null,
+        companies: compRes.error?.message || null,
+      },
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error fetching data';
