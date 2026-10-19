@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   TrendingUp,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -217,7 +218,7 @@ export function Header() {
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem asChild>
-                  <Link href="/login" className="cursor-pointer">
+                  <Link href="/auth" className="cursor-pointer">
                     <UserIcon className="mr-2 h-4 w-4 text-muted-foreground" />
                     <span>Sign In</span>
                   </Link>

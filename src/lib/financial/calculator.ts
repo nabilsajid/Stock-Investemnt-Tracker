@@ -173,14 +173,18 @@ export function calculateSale(
   const sellingBrokerageAmount = mul(grossSellingAmount, rate);
   const netSellingAmount = sub(grossSellingAmount, sellingBrokerageAmount);
 
-  const costBasisOfSharesSold = mul(sellQty, avgCost);
+  const remainingShares = sub(availShares, sellQty);
+  const costBasisOfSharesSold = remainingShares.isZero()
+    ? preCostBasis
+    : mul(sellQty, avgCost);
   const realizedProfitLoss = sub(netSellingAmount, costBasisOfSharesSold);
   const realizedProfitLossPercent = isZero(costBasisOfSharesSold)
     ? ZERO
     : mul(div(realizedProfitLoss, costBasisOfSharesSold), 100);
 
-  const remainingShares = sub(availShares, sellQty);
-  const remainingCostBasis = sub(preCostBasis, costBasisOfSharesSold);
+  const remainingCostBasis = remainingShares.isZero()
+    ? ZERO
+    : sub(preCostBasis, costBasisOfSharesSold);
 
   return {
     sellingQuantity: sellQty.toString(),

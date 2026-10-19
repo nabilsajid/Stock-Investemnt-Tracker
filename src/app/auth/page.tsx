@@ -24,7 +24,7 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      router.push('/');
+      router.replace('/');
     }
   }, [user, authLoading, router]);
 
@@ -39,9 +39,12 @@ export default function AuthPage() {
     setIsSubmitting(true);
     try {
       await signIn(email.trim(), password);
-      router.push('/');
+      router.replace('/');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to sign in. Please check your credentials.';
+      let message = err instanceof Error ? err.message : 'Failed to sign in. Please check your credentials.';
+      if (message.toLowerCase().includes('invalid login credentials')) {
+        message = 'Invalid email or password. If you haven\'t created an account yet, click "Sign Up" below.';
+      }
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -63,7 +66,7 @@ export default function AuthPage() {
     setIsSubmitting(true);
     try {
       await signUp(email.trim(), password, fullName.trim() || undefined);
-      setSuccess('Account created! If email confirmation is enabled, please check your inbox, or you can sign in directly.');
+      setSuccess('Account created! If email confirmation is enabled in your Supabase project, check your inbox. Otherwise you can sign in directly.');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create account. Please try again.';
       setError(message);
@@ -96,12 +99,24 @@ export default function AuthPage() {
         {!isConfigured && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-900/60 p-4 text-sm text-amber-800 dark:text-amber-300">
             <div className="flex gap-2">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-              <div>
+              <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div className="flex-1">
                 <p className="font-semibold">Supabase is not configured</p>
                 <p className="mt-1 text-xs">
-                  Please configure your Supabase URL and anon key in <code className="font-mono">.env.local</code> to enable authentication.
+                  Configure your Supabase URL and anon key in <code className="font-mono bg-amber-200/50 dark:bg-amber-900/50 px-1 py-0.5 rounded">.env.local</code> to enable cloud sync and authentication.
                 </p>
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/')}
+                    className="text-xs bg-background hover:bg-muted font-medium inline-flex items-center gap-1.5"
+                  >
+                    <span>Explore in Demo Mode</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

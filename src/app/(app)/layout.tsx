@@ -1,20 +1,23 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePortfolio } from '@/components/providers/portfolio-provider';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Sparkles, ArrowRight } from 'lucide-react';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, isConfigured } = usePortfolio();
   const router = useRouter();
 
   useEffect(() => {
+    // Only redirect if Supabase is configured and user is logged out
     if (!loading && isConfigured && !user) {
-      router.push('/auth');
+      router.replace('/auth');
     }
   }, [user, loading, isConfigured, router]);
 
@@ -35,30 +38,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isConfigured) {
-    return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="max-w-lg text-center space-y-4">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-900/30">
-            <svg className="w-8 h-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold">Supabase Not Configured</h2>
-          <p className="text-muted-foreground">To use StockTracker, please configure your Supabase credentials.</p>
-          <div className="bg-muted rounded-lg p-4 text-left text-sm font-mono">
-            <p className="text-muted-foreground mb-2"># Add to .env.local:</p>
-            <p>NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co</p>
-            <p>NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key</p>
-          </div>
-          <p className="text-xs text-muted-foreground">After adding the environment variables, restart the dev server.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null; // Redirecting to /auth
+  // If Supabase is configured and user is logged out, wait for redirect
+  if (isConfigured && !user) {
+    return null;
   }
 
   return (
@@ -66,6 +48,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex-1 flex flex-col min-h-screen">
         <Header />
+
+        {/* Demo Mode Notice Banner when Supabase is not configured */}
+        {!isConfigured && (
+          <div className="bg-amber-500/10 border-b border-amber-500/25 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>
+                <strong>Simulated DSE Demo Mode:</strong> Supabase credentials are not configured in <code className="font-mono bg-amber-500/20 px-1 py-0.5 rounded">.env.local</code>. You can interactively test buying, selling, and tracking DSE stocks locally.
+              </span>
+            </div>
+            <Link
+              href="/settings"
+              className="font-semibold text-primary hover:underline shrink-0 text-xs inline-flex items-center gap-1"
+            >
+              <span>Setup Supabase</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
+
         <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">
           {children}
         </main>

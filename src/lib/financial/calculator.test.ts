@@ -7,7 +7,12 @@ import {
   calculateUnrealized,
   calculatePortfolioTotals,
 } from './calculator';
-import { replayLedger, RawTransaction } from './ledger-replay';
+import {
+  replayLedger,
+  validateTransactionEdit,
+  validateTransactionDelete,
+  RawTransaction,
+} from './ledger-replay';
 
 describe('Financial Calculation Engine', () => {
   describe('A. Buying calculations', () => {
@@ -130,6 +135,149 @@ describe('Financial Calculation Engine', () => {
     });
   });
 
+  describe('G. Portfolio Totals Aggregation', () => {
+    it('handles empty holdings list', () => {
+      const totals = calculatePortfolioTotals([]);
+      expect(totals.totalSharesPurchased).toBe('0');
+      expect(totals.totalSharesSold).toBe('0');
+      expect(totals.totalAvailableShares).toBe('0');
+      expect(totals.cumulativePurchaseCost).toBe('0.00');
+      expect(totals.remainingInvestmentCostBasis).toBe('0.00');
+      expect(totals.currentMarketValue).toBeNull();
+      expect(totals.totalRealizedProfitLoss).toBe('0.00');
+      expect(totals.totalUnrealizedProfitLoss).toBeNull();
+      expect(totals.totalBrokeragePaid).toBe('0.00');
+    });
+
+    it('aggregates multiple holdings when all active stocks have prices', () => {
+      const holdings = [
+        {
+          totalPurchased: '100',
+          totalSold: '40',
+          available: '60',
+          cumulativeCost: '5025.00',
+          remainingCostBasis: '3015.00',
+          currentMarketValue: '3600.00',
+          realizedPL: '179.00',
+          unrealizedPL: '567.00',
+          totalBrokerage: '36.00',
+        },
+        {
+          totalPurchased: '50',
+          totalSold: '0',
+          available: '50',
+          cumulativeCost: '2512.50',
+          remainingCostBasis: '2512.50',
+          currentMarketValue: '3000.00',
+          realizedPL: '0.00',
+          unrealizedPL: '472.50',
+          totalBrokerage: '12.50',
+        },
+      ];
+
+      const totals = calculatePortfolioTotals(holdings);
+      expect(totals.totalSharesPurchased).toBe('150');
+      expect(totals.totalSharesSold).toBe('40');
+      expect(totals.totalAvailableShares).toBe('110');
+      expect(totals.cumulativePurchaseCost).toBe('7537.50');
+      expect(totals.remainingInvestmentCostBasis).toBe('5527.50');
+      expect(totals.currentMarketValue).toBe('6600.00');
+      expect(totals.totalRealizedProfitLoss).toBe('179.00');
+      expect(totals.totalUnrealizedProfitLoss).toBe('1039.50');
+      expect(totals.totalBrokeragePaid).toBe('48.50');
+    });
+
+    it('returns null market value when an active holding is missing a market price', () => {
+      const holdings = [
+        {
+          totalPurchased: '100',
+          totalSold: '40',
+          available: '60',
+          cumulativeCost: '5025.00',
+          remainingCostBasis: '3015.00',
+          currentMarketValue: '3600.00',
+          realizedPL: '179.00',
+          unrealizedPL: '567.00',
+          totalBrokerage: '36.00',
+        },
+        {
+          totalPurchased: '50',
+          totalSold: '0',
+          available: '50',
+          cumulativeCost: '2512.50',
+          remainingCostBasis: '2512.50',
+          currentMarketValue: null, // Missing price!
+          realizedPL: '0.00',
+          unrealizedPL: null,
+          totalBrokerage: '12.50',
+        },
+      ];
+
+      const totals = calculatePortfolioTotals(holdings);
+      expect(totals.currentMarketValue).toBeNull();
+      expect(totals.totalUnrealizedProfitLoss).toBeNull();
+      // Other aggregates should still compute correctly
+      expect(totals.totalAvailableShares).toBe('110');
+      expect(totals.remainingInvestmentCostBasis).toBe('5527.50');
+    });
+
+    it('ignores null market price on closed/liquidated positions (available = 0)', () => {
+      const holdings = [
+        {
+          totalPurchased: '100',
+          totalSold: '100',
+          available: '0',
+          cumulativeCost: '5025.00',
+          remainingCostBasis: '0.00',
+          currentMarketValue: null, // Fully liquidated position without price
+          realizedPL: '447.50',
+          unrealizedPL: null,
+          totalBrokerage: '52.50',
+        },
+        {
+          totalPurchased: '50',
+          totalSold: '0',
+          available: '50',
+          cumulativeCost: '2512.50',
+          remainingCostBasis: '2512.50',
+          currentMarketValue: '3000.00',
+          realizedPL: '0.00',
+          unrealizedPL: '472.50',
+          totalBrokerage: '12.50',
+        },
+      ];
+
+      const totals = calculatePortfolioTotals(holdings);
+      // Because the liquidated position has 0 available shares, it does NOT invalidate portfolio market value
+      expect(totals.currentMarketValue).toBe('3000.00');
+      expect(totals.totalUnrealizedProfitLoss).toBe('472.50');
+      expect(totals.totalRealizedProfitLoss).toBe('447.50');
+    });
+  });
+
+  describe('Edge cases and boundary conditions', () => {
+    it('throws error when selling brokerage rate is >= 1 (100%)', () => {
+      expect(() => {
+        calculateMinimumSellingPrice(50, 1);
+      }).toThrow(/Selling brokerage rate must be less than 1/);
+    });
+
+    it('calculates minimum selling price with 0% brokerage', () => {
+      const res = calculateMinimumSellingPrice(50, 0);
+      expect(res.breakEvenPrice).toBe('50.0000');
+    });
+
+    it('cleanly zeroes out remaining cost basis on 100% position liquidation even with repeating decimals', () => {
+      // 3 shares bought for 10.00 each with 0 brokerage = 30.00 cost basis (avg cost 10.00)
+      const p = calculatePurchase(3, '10.00', '0');
+      const state = calculateWeightedAverage(0, 0, p);
+      const sale = calculateSale(3, '12.00', state.updatedAveragePrice, 3, state.updatedTotalCostBasis, '0');
+      expect(sale.remainingShares).toBe('0');
+      expect(sale.remainingCostBasis).toBe('0.00');
+      expect(sale.realizedProfitLoss).toBe('6.00');
+    });
+  });
+
   describe('Ledger Replay Engine', () => {
     it('replays a sequence of BUY, BUY, SELL, BUY accurately', () => {
       const txs: RawTransaction[] = [
@@ -195,6 +343,102 @@ describe('Financial Calculation Engine', () => {
       const res = replayLedger(txs);
       expect(res.valid).toBe(false);
       expect(res.error).toBeDefined();
+    });
+
+    it('respects same-day sequence ordering (BUY before SELL)', () => {
+      const txs: RawTransaction[] = [
+        {
+          id: 'sell-1',
+          type: 'SELL',
+          date: '2026-01-05',
+          quantity: 50,
+          pricePerShare: 60,
+          brokerageRate: 0.005,
+          sequence: 2,
+        },
+        {
+          id: 'buy-1',
+          type: 'BUY',
+          date: '2026-01-05',
+          quantity: 50,
+          pricePerShare: 50,
+          brokerageRate: 0.005,
+          sequence: 1,
+        },
+      ];
+
+      const res = replayLedger(txs);
+      expect(res.valid).toBe(true);
+      expect(res.finalState.availableShares).toBe('0');
+      expect(res.finalState.costBasis).toBe('0.00');
+    });
+
+    it('rejects same-day sale when sequence puts SELL before BUY', () => {
+      const txs: RawTransaction[] = [
+        {
+          id: 'sell-1',
+          type: 'SELL',
+          date: '2026-01-05',
+          quantity: 50,
+          pricePerShare: 60,
+          brokerageRate: 0.005,
+          sequence: 1,
+        },
+        {
+          id: 'buy-1',
+          type: 'BUY',
+          date: '2026-01-05',
+          quantity: 50,
+          pricePerShare: 50,
+          brokerageRate: 0.005,
+          sequence: 2,
+        },
+      ];
+
+      const res = replayLedger(txs);
+      expect(res.valid).toBe(false);
+      expect(res.error).toContain('Cannot sell 50 shares');
+    });
+
+    it('validates transaction editing and deletion', () => {
+      const txs: RawTransaction[] = [
+        {
+          id: '1',
+          type: 'BUY',
+          date: '2026-01-01',
+          quantity: 100,
+          pricePerShare: 50,
+          brokerageRate: 0.005,
+        },
+        {
+          id: '2',
+          type: 'SELL',
+          date: '2026-01-02',
+          quantity: 80,
+          pricePerShare: 60,
+          brokerageRate: 0.005,
+        },
+      ];
+
+      // Deleting purchase '1' would make the sell invalid
+      const deleteBuyRes = validateTransactionDelete(txs, '1');
+      expect(deleteBuyRes.valid).toBe(false);
+
+      // Editing purchase '1' to quantity 50 would make the sell of 80 invalid
+      const editBuyRes = validateTransactionEdit(txs, {
+        id: '1',
+        type: 'BUY',
+        date: '2026-01-01',
+        quantity: 50,
+        pricePerShare: 50,
+        brokerageRate: 0.005,
+      });
+      expect(editBuyRes.valid).toBe(false);
+
+      // Deleting sell '2' is valid
+      const deleteSellRes = validateTransactionDelete(txs, '2');
+      expect(deleteSellRes.valid).toBe(true);
+      expect(deleteSellRes.finalState.availableShares).toBe('100');
     });
   });
 });

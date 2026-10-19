@@ -12,6 +12,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,14 @@ import {
 } from '@/components/ui/tooltip';
 import { usePortfolio } from '@/components/providers/portfolio-provider';
 
-const navItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: string;
+}
+
+const navItems: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/holdings', label: 'Holdings', icon: Briefcase },
   { href: '/transactions', label: 'Transactions', icon: Receipt },
@@ -91,7 +99,23 @@ export function Sidebar() {
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && (
+                  <span className="flex-1 flex items-center justify-between">
+                    <span>{item.label}</span>
+                    {item.badge && (
+                      <span
+                        className={cn(
+                          'text-[9px] font-semibold tracking-wide uppercase px-1.5 py-0.5 rounded-full',
+                          isActive
+                            ? 'bg-primary-foreground/20 text-primary-foreground'
+                            : 'bg-primary/10 text-primary border border-primary/20'
+                        )}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </span>
+                )}
               </Link>
             );
 

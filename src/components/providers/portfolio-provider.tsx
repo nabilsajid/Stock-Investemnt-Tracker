@@ -63,6 +63,156 @@ const defaultSummary: PortfolioSummary = {
   holdingsCount: 0,
 };
 
+const DEMO_USER: User = {
+  id: 'usr_demo_001',
+  app_metadata: {},
+  user_metadata: { full_name: 'Tanvir Ahmed (Demo)' },
+  aud: 'authenticated',
+  created_at: '2026-09-01T00:00:00.000Z',
+  email: 'demo@investor.bd',
+} as unknown as User;
+
+const INITIAL_DEMO_COMPANIES: Company[] = [
+  { id: 'cmp_1', user_id: 'usr_demo_001', name: 'Grameenphone Ltd.', symbol: 'GP', exchange: 'DSE', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' },
+  { id: 'cmp_2', user_id: 'usr_demo_001', name: 'Square Pharmaceuticals Ltd.', symbol: 'SQURPHARMA', exchange: 'DSE', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' },
+  { id: 'cmp_3', user_id: 'usr_demo_001', name: 'BRAC Bank PLC', symbol: 'BRACBANK', exchange: 'DSE', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' },
+  { id: 'cmp_4', user_id: 'usr_demo_001', name: 'British American Tobacco Bangladesh', symbol: 'BATBC', exchange: 'DSE', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' },
+  { id: 'cmp_5', user_id: 'usr_demo_001', name: 'Beximco Pharmaceuticals Ltd.', symbol: 'BEXIMCO', exchange: 'DSE', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' },
+];
+
+const INITIAL_DEMO_TRANSACTIONS: Transaction[] = [
+  {
+    id: 'txn_1',
+    user_id: 'usr_demo_001',
+    company_id: 'cmp_1',
+    type: 'BUY',
+    date: '2026-10-01',
+    quantity: 100,
+    price_per_share: 245.5,
+    gross_amount: 24550,
+    brokerage_rate: 0.005,
+    brokerage_amount: 122.75,
+    net_amount: 24672.75,
+    cost_basis_of_sold: null,
+    realized_profit_loss: null,
+    pre_sale_avg_cost: null,
+    additional_charges: 0,
+    additional_charges_note: null,
+    notes: 'Initial position acquisition on DSE',
+    sequence: 1,
+    created_at: '2026-10-01T00:00:00Z',
+    updated_at: '2026-10-01T00:00:00Z',
+  },
+  {
+    id: 'txn_2',
+    user_id: 'usr_demo_001',
+    company_id: 'cmp_2',
+    type: 'BUY',
+    date: '2026-10-05',
+    quantity: 150,
+    price_per_share: 218.0,
+    gross_amount: 32700,
+    brokerage_rate: 0.005,
+    brokerage_amount: 163.5,
+    net_amount: 32863.5,
+    cost_basis_of_sold: null,
+    realized_profit_loss: null,
+    pre_sale_avg_cost: null,
+    additional_charges: 0,
+    additional_charges_note: null,
+    notes: 'Long-term pharma core position',
+    sequence: 1,
+    created_at: '2026-10-05T00:00:00Z',
+    updated_at: '2026-10-05T00:00:00Z',
+  },
+  {
+    id: 'txn_3',
+    user_id: 'usr_demo_001',
+    company_id: 'cmp_1',
+    type: 'SELL',
+    date: '2026-10-10',
+    quantity: 40,
+    price_per_share: 272.0,
+    gross_amount: 10880,
+    brokerage_rate: 0.005,
+    brokerage_amount: 54.4,
+    net_amount: 10825.6,
+    cost_basis_of_sold: 9869.1,
+    realized_profit_loss: 956.5,
+    pre_sale_avg_cost: 246.7275,
+    additional_charges: 0,
+    additional_charges_note: null,
+    notes: 'Partial profit booking at target',
+    sequence: 1,
+    created_at: '2026-10-10T00:00:00Z',
+    updated_at: '2026-10-10T00:00:00Z',
+  },
+  {
+    id: 'txn_4',
+    user_id: 'usr_demo_001',
+    company_id: 'cmp_3',
+    type: 'BUY',
+    date: '2026-10-12',
+    quantity: 500,
+    price_per_share: 48.2,
+    gross_amount: 24100,
+    brokerage_rate: 0.005,
+    brokerage_amount: 120.5,
+    net_amount: 24220.5,
+    cost_basis_of_sold: null,
+    realized_profit_loss: null,
+    pre_sale_avg_cost: null,
+    additional_charges: 0,
+    additional_charges_note: null,
+    notes: 'Banking sector high-yield investment',
+    sequence: 1,
+    created_at: '2026-10-12T00:00:00Z',
+    updated_at: '2026-10-12T00:00:00Z',
+  },
+  {
+    id: 'txn_5',
+    user_id: 'usr_demo_001',
+    company_id: 'cmp_4',
+    type: 'BUY',
+    date: '2026-10-15',
+    quantity: 50,
+    price_per_share: 360.0,
+    gross_amount: 18000,
+    brokerage_rate: 0.005,
+    brokerage_amount: 90.0,
+    net_amount: 18090.0,
+    cost_basis_of_sold: null,
+    realized_profit_loss: null,
+    pre_sale_avg_cost: null,
+    additional_charges: 0,
+    additional_charges_note: null,
+    notes: 'FMCG blue-chip allocation',
+    sequence: 1,
+    created_at: '2026-10-15T00:00:00Z',
+    updated_at: '2026-10-15T00:00:00Z',
+  },
+];
+
+const INITIAL_DEMO_PRICES: MarketPrice[] = [
+  { id: 'prc_1', user_id: 'usr_demo_001', company_id: 'cmp_1', price: 268.0, updated_at: '2026-10-18T10:00:00Z' },
+  { id: 'prc_2', user_id: 'usr_demo_001', company_id: 'cmp_2', price: 224.5, updated_at: '2026-10-18T10:00:00Z' },
+  { id: 'prc_3', user_id: 'usr_demo_001', company_id: 'cmp_3', price: 51.0, updated_at: '2026-10-18T10:00:00Z' },
+  { id: 'prc_4', user_id: 'usr_demo_001', company_id: 'cmp_4', price: 372.0, updated_at: '2026-10-18T10:00:00Z' },
+  { id: 'prc_5', user_id: 'usr_demo_001', company_id: 'cmp_5', price: 118.0, updated_at: '2026-10-18T10:00:00Z' },
+];
+
+const INITIAL_DEMO_SETTINGS: UserSettings = {
+  id: 'stg_1',
+  user_id: 'usr_demo_001',
+  default_buying_brokerage_rate: 0.005,
+  default_selling_brokerage_rate: 0.005,
+  currency: 'BDT',
+  timezone: 'Asia/Dhaka',
+  theme: 'light',
+  created_at: '2026-09-01T00:00:00Z',
+  updated_at: '2026-09-01T00:00:00Z',
+};
+
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
 
 export function PortfolioProvider({ children }: { children: React.ReactNode }) {
@@ -102,7 +252,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
         if (companyTxns.length === 0) continue;
 
-        // Use the replay engine for accurate calculations
+        // Convert to RawTransaction for replay
         const rawTxns: RawTransaction[] = companyTxns.map((t) => ({
           id: t.id,
           type: t.type,
@@ -113,41 +263,40 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
           sequence: t.sequence,
         }));
 
-        const result = replayLedger(rawTxns);
-        if (!result.valid) continue;
+        const replayResult = replayLedger(rawTxns);
+        const { finalState } = replayResult;
 
-        const state = result.finalState;
-        const availableShares = parseFloat(state.availableShares);
+        const availableShares = parseInt(finalState.availableShares, 10);
+        const priceRecord = prices.find((p) => p.company_id === company.id) || null;
+        const marketPriceVal = priceRecord ? priceRecord.price : null;
 
-        if (availableShares <= 0 && parseFloat(state.totalRealizedPL) === 0) continue;
+        // Minimum selling price (break-even)
+        const minSelling = calculateMinimumSellingPrice(
+          finalState.averagePurchasePrice,
+          sellingBrokerageRate
+        );
 
-        const marketPrice = prices.find((p) => p.company_id === company.id) || null;
-        const breakEven = availableShares > 0
-          ? calculateMinimumSellingPrice(state.averagePurchasePrice, sellingBrokerageRate)
-          : null;
-
-        const unrealized = availableShares > 0
-          ? calculateUnrealized(
-            state.availableShares,
-            state.costBasis,
-            marketPrice ? String(marketPrice.price) : null,
-            sellingBrokerageRate,
-            marketPrice?.updated_at || null
-          )
-          : null;
+        // Unrealized P/L
+        const unrealized = calculateUnrealized(
+          finalState.availableShares,
+          finalState.costBasis,
+          marketPriceVal,
+          sellingBrokerageRate,
+          priceRecord?.updated_at || null
+        );
 
         holdingsList.push({
           company,
-          totalSharesPurchased: parseFloat(state.totalSharesPurchased),
-          totalSharesSold: parseFloat(state.totalSharesSold),
           availableShares,
-          weightedAverageCost: availableShares > 0 ? state.averagePurchasePrice : '0.00',
-          breakEvenPrice: breakEven ? breakEven.breakEvenPrice : '0.00',
-          remainingCostBasis: state.costBasis,
-          cumulativePurchaseCost: state.cumulativePurchaseCost,
-          totalRealizedPL: state.totalRealizedPL,
-          totalBrokerage: state.totalBrokeragePaid,
-          marketPrice,
+          totalSharesPurchased: parseInt(finalState.totalSharesPurchased, 10),
+          totalSharesSold: parseInt(finalState.totalSharesSold, 10),
+          weightedAverageCost: finalState.averagePurchasePrice,
+          remainingCostBasis: finalState.costBasis,
+          cumulativePurchaseCost: finalState.cumulativePurchaseCost,
+          breakEvenPrice: minSelling.breakEvenPrice,
+          totalRealizedPL: finalState.totalRealizedPL,
+          totalBrokerage: finalState.totalBrokeragePaid,
+          marketPrice: priceRecord,
           currentMarketValue: unrealized?.currentMarketValue || null,
           unrealizedPL: unrealized?.unrealizedProfitLoss || null,
           unrealizedPLPercent: unrealized?.unrealizedProfitLossPercent || null,
@@ -180,8 +329,42 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Fetch all data from Supabase
+  // Fetch all data from Supabase or Local Demo
   const fetchData = useCallback(async () => {
+    if (!isConfigured) {
+      // Load demo data from localStorage if exists
+      let comps = INITIAL_DEMO_COMPANIES;
+      let txns = INITIAL_DEMO_TRANSACTIONS;
+      let prices = INITIAL_DEMO_PRICES;
+      let userSettings = INITIAL_DEMO_SETTINGS;
+
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('stocktracker_demo_state');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed.companies) comps = parsed.companies;
+            if (parsed.transactions) txns = parsed.transactions;
+            if (parsed.marketPrices) prices = parsed.marketPrices;
+            if (parsed.settings) userSettings = parsed.settings;
+          }
+        } catch (e) {
+          console.warn('Could not parse demo storage:', e);
+        }
+      }
+
+      setCompanies(comps);
+      setTransactions(txns);
+      setMarketPrices(prices);
+      setSettings(userSettings);
+
+      const sellingRate = userSettings?.default_selling_brokerage_rate || 0.005;
+      const holdingsList = computeHoldings(comps, txns, prices, sellingRate);
+      setHoldings(holdingsList);
+      setPortfolioSummary(computePortfolioSummary(holdingsList));
+      return;
+    }
+
     const supabase = getSupabase();
     if (!supabase || !user) return;
 
@@ -190,13 +373,33 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         supabase.from('companies').select('*').eq('user_id', user.id).order('name'),
         supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: true }).order('sequence', { ascending: true }),
         supabase.from('market_prices').select('*').eq('user_id', user.id),
-        supabase.from('user_settings').select('*').eq('user_id', user.id).single(),
+        supabase.from('user_settings').select('*').eq('user_id', user.id).maybeSingle(),
       ]);
 
       const comps = (companiesRes.data || []) as Company[];
       const txns = (transactionsRes.data || []) as Transaction[];
       const prices = (pricesRes.data || []) as MarketPrice[];
-      const userSettings = settingsRes.data as UserSettings | null;
+      let userSettings = settingsRes.data as UserSettings | null;
+
+      if (!userSettings) {
+        try {
+          const { data: newSettings } = await supabase
+            .from('user_settings')
+            .upsert({
+              user_id: user.id,
+              default_buying_brokerage_rate: 0.005,
+              default_selling_brokerage_rate: 0.005,
+              currency: 'BDT',
+              timezone: 'Asia/Dhaka',
+              theme: 'light',
+            })
+            .select()
+            .single();
+          if (newSettings) userSettings = newSettings as UserSettings;
+        } catch (e) {
+          console.warn('Could not auto-create user_settings:', e);
+        }
+      }
 
       setCompanies(comps);
       setTransactions(txns);
@@ -210,11 +413,13 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Error fetching data:', err);
     }
-  }, [user, getSupabase, computeHoldings, computePortfolioSummary]);
+  }, [isConfigured, user, getSupabase, computeHoldings, computePortfolioSummary]);
 
   // Auth initialization
   useEffect(() => {
     if (!isConfigured) {
+      setUser(DEMO_USER);
+      fetchData();
       setLoading(false);
       return;
     }
@@ -225,8 +430,15 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    }).catch(() => {
+      setUser(null);
       setLoading(false);
     });
 
@@ -234,6 +446,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -243,7 +456,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (user) {
       fetchData();
-    } else {
+    } else if (isConfigured) {
       setCompanies([]);
       setTransactions([]);
       setMarketPrices([]);
@@ -251,7 +464,26 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       setHoldings([]);
       setPortfolioSummary(defaultSummary);
     }
-  }, [user, fetchData]);
+  }, [user, isConfigured, fetchData]);
+
+  // Save demo state helper
+  const saveDemoState = useCallback((newComps: Company[], newTxns: Transaction[], newPrices: MarketPrice[], newSettings?: UserSettings) => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(
+          'stocktracker_demo_state',
+          JSON.stringify({
+            companies: newComps,
+            transactions: newTxns,
+            marketPrices: newPrices,
+            settings: newSettings || settings,
+          })
+        );
+      } catch (e) {
+        console.warn('Failed to save demo state:', e);
+      }
+    }
+  }, [settings]);
 
   // Realtime subscriptions
   useEffect(() => {
@@ -283,21 +515,16 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     };
   }, [isConfigured, user, getSupabase, fetchData]);
 
-  // Window focus refetch
-  useEffect(() => {
-    const handleFocus = () => {
-      if (user) fetchData();
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [user, fetchData]);
-
   const signIn = useCallback(
     async (email: string, password: string) => {
       const supabase = getSupabase();
       if (!supabase) throw new Error('Supabase not configured');
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      if (data?.user) {
+        setUser(data.user);
+        setLoading(false);
+      }
     },
     [getSupabase]
   );
@@ -306,22 +533,30 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     async (email: string, password: string, fullName?: string) => {
       const supabase = getSupabase();
       if (!supabase) throw new Error('Supabase not configured');
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { full_name: fullName } },
       });
       if (error) throw error;
+      if (data?.user && data?.session) {
+        setUser(data.user);
+        setLoading(false);
+      }
     },
     [getSupabase]
   );
 
   const signOut = useCallback(async () => {
+    if (!isConfigured) {
+      return;
+    }
     const supabase = getSupabase();
     if (!supabase) throw new Error('Supabase not configured');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-  }, [getSupabase]);
+    setUser(null);
+  }, [isConfigured, getSupabase]);
 
   const addPurchase = useCallback(
     async (data: {
@@ -333,6 +568,60 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       date: string;
       brokerageRate: number;
     }) => {
+      const calc = calculatePurchase(data.quantity, data.pricePerShare, data.brokerageRate);
+
+      if (!isConfigured) {
+        // Local Demo Mode Add Purchase
+        let company = companies.find((c) => c.symbol === data.symbol && c.exchange === data.exchange);
+        let updatedComps = [...companies];
+        if (!company) {
+          company = {
+            id: `cmp_${Date.now()}`,
+            user_id: 'usr_demo_001',
+            name: data.companyName,
+            symbol: data.symbol,
+            exchange: data.exchange,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          updatedComps.push(company);
+        }
+
+        const newTxn: Transaction = {
+          id: `txn_${Date.now()}`,
+          user_id: 'usr_demo_001',
+          company_id: company.id,
+          type: 'BUY',
+          date: data.date,
+          quantity: data.quantity,
+          price_per_share: data.pricePerShare,
+          gross_amount: parseFloat(calc.grossAmount),
+          brokerage_rate: data.brokerageRate,
+          brokerage_amount: parseFloat(calc.brokerageAmount),
+          net_amount: parseFloat(calc.totalCost),
+          cost_basis_of_sold: null,
+          realized_profit_loss: null,
+          pre_sale_avg_cost: null,
+          additional_charges: 0,
+          additional_charges_note: null,
+          notes: 'Purchase entry',
+          sequence: 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const updatedTxns = [...transactions, newTxn];
+        setCompanies(updatedComps);
+        setTransactions(updatedTxns);
+        saveDemoState(updatedComps, updatedTxns, marketPrices);
+
+        const sellingRate = settings?.default_selling_brokerage_rate || 0.005;
+        const holdingsList = computeHoldings(updatedComps, updatedTxns, marketPrices, sellingRate);
+        setHoldings(holdingsList);
+        setPortfolioSummary(computePortfolioSummary(holdingsList));
+        return;
+      }
+
       const supabase = getSupabase();
       if (!supabase || !user) throw new Error('Not authenticated');
 
@@ -357,9 +646,6 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         company = newCompany as Company;
       }
 
-      // Calculate transaction amounts
-      const calc = calculatePurchase(data.quantity, data.pricePerShare, data.brokerageRate);
-
       const { error: txnError } = await supabase.from('transactions').insert({
         user_id: user.id,
         company_id: company.id,
@@ -377,7 +663,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       await fetchData();
     },
-    [user, companies, getSupabase, fetchData]
+    [isConfigured, user, companies, transactions, marketPrices, settings, saveDemoState, computeHoldings, computePortfolioSummary, getSupabase, fetchData]
   );
 
   const addSale = useCallback(
@@ -388,17 +674,12 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       date: string;
       brokerageRate: number;
     }) => {
-      const supabase = getSupabase();
-      if (!supabase || !user) throw new Error('Not authenticated');
-
-      // Get current holding
       const holding = holdings.find((h) => h.company.id === data.companyId);
       if (!holding) throw new Error('Company not found in holdings');
       if (data.quantity > holding.availableShares) {
         throw new Error(`Cannot sell ${data.quantity} shares. Only ${holding.availableShares} available.`);
       }
 
-      // Calculate sale amounts
       const calc = calculateSale(
         data.quantity,
         data.pricePerShare,
@@ -407,6 +688,44 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         holding.remainingCostBasis,
         data.brokerageRate
       );
+
+      if (!isConfigured) {
+        const newTxn: Transaction = {
+          id: `txn_${Date.now()}`,
+          user_id: 'usr_demo_001',
+          company_id: data.companyId,
+          type: 'SELL',
+          date: data.date,
+          quantity: data.quantity,
+          price_per_share: data.pricePerShare,
+          gross_amount: parseFloat(calc.grossSellingAmount),
+          brokerage_rate: data.brokerageRate,
+          brokerage_amount: parseFloat(calc.sellingBrokerageAmount),
+          net_amount: parseFloat(calc.netSellingAmount),
+          cost_basis_of_sold: parseFloat(calc.costBasisOfSharesSold),
+          realized_profit_loss: parseFloat(calc.realizedProfitLoss),
+          pre_sale_avg_cost: parseFloat(calc.preSaleAverageCost),
+          additional_charges: 0,
+          additional_charges_note: null,
+          notes: 'Sale entry',
+          sequence: 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const updatedTxns = [...transactions, newTxn];
+        setTransactions(updatedTxns);
+        saveDemoState(companies, updatedTxns, marketPrices);
+
+        const sellingRate = settings?.default_selling_brokerage_rate || 0.005;
+        const holdingsList = computeHoldings(companies, updatedTxns, marketPrices, sellingRate);
+        setHoldings(holdingsList);
+        setPortfolioSummary(computePortfolioSummary(holdingsList));
+        return;
+      }
+
+      const supabase = getSupabase();
+      if (!supabase || !user) throw new Error('Not authenticated');
 
       const { error: txnError } = await supabase.from('transactions').insert({
         user_id: user.id,
@@ -428,15 +747,41 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       await fetchData();
     },
-    [user, holdings, getSupabase, fetchData]
+    [isConfigured, user, holdings, transactions, companies, marketPrices, settings, saveDemoState, computeHoldings, computePortfolioSummary, getSupabase, fetchData]
   );
 
   const updateMarketPrice = useCallback(
     async (companyId: string, price: number) => {
+      if (!isConfigured) {
+        let updatedPrices = [...marketPrices];
+        const existingIdx = updatedPrices.findIndex((p) => p.company_id === companyId);
+        const newRecord: MarketPrice = {
+          id: `prc_${companyId}`,
+          user_id: 'usr_demo_001',
+          company_id: companyId,
+          price,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (existingIdx >= 0) {
+          updatedPrices[existingIdx] = newRecord;
+        } else {
+          updatedPrices.push(newRecord);
+        }
+
+        setMarketPrices(updatedPrices);
+        saveDemoState(companies, transactions, updatedPrices);
+
+        const sellingRate = settings?.default_selling_brokerage_rate || 0.005;
+        const holdingsList = computeHoldings(companies, transactions, updatedPrices, sellingRate);
+        setHoldings(holdingsList);
+        setPortfolioSummary(computePortfolioSummary(holdingsList));
+        return;
+      }
+
       const supabase = getSupabase();
       if (!supabase || !user) throw new Error('Not authenticated');
 
-      // Upsert the market price
       const { error } = await supabase.from('market_prices').upsert(
         {
           user_id: user.id,
@@ -449,7 +794,6 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
 
-      // Also insert into price history
       await supabase.from('market_price_history').insert({
         user_id: user.id,
         company_id: companyId,
@@ -458,11 +802,27 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       await fetchData();
     },
-    [user, getSupabase, fetchData]
+    [isConfigured, user, marketPrices, companies, transactions, settings, saveDemoState, computeHoldings, computePortfolioSummary, getSupabase, fetchData]
   );
 
   const updateSettings = useCallback(
     async (newSettings: Partial<UserSettings>) => {
+      if (!isConfigured) {
+        const merged: UserSettings = {
+          ...(settings || INITIAL_DEMO_SETTINGS),
+          ...newSettings,
+          updated_at: new Date().toISOString(),
+        };
+        setSettings(merged);
+        saveDemoState(companies, transactions, marketPrices, merged);
+
+        const sellingRate = merged.default_selling_brokerage_rate || 0.005;
+        const holdingsList = computeHoldings(companies, transactions, marketPrices, sellingRate);
+        setHoldings(holdingsList);
+        setPortfolioSummary(computePortfolioSummary(holdingsList));
+        return;
+      }
+
       const supabase = getSupabase();
       if (!supabase || !user) throw new Error('Not authenticated');
 
@@ -479,19 +839,70 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       await fetchData();
     },
-    [user, getSupabase, fetchData]
+    [isConfigured, user, settings, companies, transactions, marketPrices, saveDemoState, computeHoldings, computePortfolioSummary, getSupabase, fetchData]
+  );
+
+  const recomputeCompanySales = useCallback(
+    async (companyId: string) => {
+      const supabase = getSupabase();
+      if (!supabase || !user) return;
+
+      const { data: txns } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('company_id', companyId)
+        .eq('user_id', user.id)
+        .order('date', { ascending: true })
+        .order('sequence', { ascending: true });
+
+      if (!txns || txns.length === 0) return;
+
+      const rawTxns: RawTransaction[] = txns.map((t) => ({
+        id: t.id,
+        type: t.type,
+        date: t.date,
+        quantity: t.quantity,
+        pricePerShare: t.price_per_share,
+        brokerageRate: t.brokerage_rate,
+        sequence: t.sequence,
+      }));
+
+      const replayResult = replayLedger(rawTxns);
+      if (!replayResult.valid) return;
+
+      for (const txn of txns) {
+        if (txn.type !== 'SELL') continue;
+
+        const stateBefore = replayResult.transactionStates.get(txn.id);
+        const preSaleAvgCost = stateBefore?.averagePurchasePrice || '0';
+
+        const saleCalc = calculateSale(
+          txn.quantity,
+          txn.price_per_share,
+          preSaleAvgCost,
+          stateBefore?.availableShares || '0',
+          stateBefore?.costBasis || '0',
+          txn.brokerage_rate
+        );
+
+        await supabase
+          .from('transactions')
+          .update({
+            cost_basis_of_sold: parseFloat(saleCalc.costBasisOfSharesSold),
+            realized_profit_loss: parseFloat(saleCalc.realizedProfitLoss),
+            pre_sale_avg_cost: parseFloat(preSaleAvgCost),
+          })
+          .eq('id', txn.id);
+      }
+    },
+    [user, getSupabase]
   );
 
   const editTransaction = useCallback(
     async (id: string, data: Partial<Transaction>) => {
-      const supabase = getSupabase();
-      if (!supabase || !user) throw new Error('Not authenticated');
-
-      // Get the full existing transaction
       const existingTxn = transactions.find((t) => t.id === id);
       if (!existingTxn) throw new Error('Transaction not found');
 
-      // Merge updated fields
       const updatedTxn: RawTransaction = {
         id,
         type: (data.type || existingTxn.type) as 'BUY' | 'SELL',
@@ -502,7 +913,6 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         sequence: data.sequence ?? existingTxn.sequence,
       };
 
-      // Get all transactions for the same company and validate
       const companyTxns = transactions
         .filter((t) => t.company_id === existingTxn.company_id)
         .map((t) => ({
@@ -520,10 +930,40 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         throw new Error(result.error || 'Edit creates invalid transaction history');
       }
 
-      // Recalculate amounts
       const calc = updatedTxn.type === 'BUY'
         ? calculatePurchase(updatedTxn.quantity, updatedTxn.pricePerShare, updatedTxn.brokerageRate)
         : null;
+
+      if (!isConfigured) {
+        const updatedTxns: Transaction[] = transactions.map((t) => {
+          if (t.id !== id) return t;
+          return {
+            ...t,
+            type: updatedTxn.type,
+            date: updatedTxn.date,
+            quantity: updatedTxn.quantity,
+            price_per_share: updatedTxn.pricePerShare,
+            brokerage_rate: updatedTxn.brokerageRate,
+            sequence: updatedTxn.sequence ?? t.sequence,
+            gross_amount: updatedTxn.quantity * updatedTxn.pricePerShare,
+            brokerage_amount: updatedTxn.quantity * updatedTxn.pricePerShare * updatedTxn.brokerageRate,
+            net_amount: calc ? parseFloat(calc.totalCost) : t.net_amount,
+            notes: data.notes ?? t.notes,
+          };
+        });
+
+        setTransactions(updatedTxns);
+        saveDemoState(companies, updatedTxns, marketPrices);
+
+        const sellingRate = settings?.default_selling_brokerage_rate || 0.005;
+        const holdingsList = computeHoldings(companies, updatedTxns, marketPrices, sellingRate);
+        setHoldings(holdingsList);
+        setPortfolioSummary(computePortfolioSummary(holdingsList));
+        return;
+      }
+
+      const supabase = getSupabase();
+      if (!supabase || !user) throw new Error('Not authenticated');
 
       const updateData: Record<string, unknown> = {
         type: updatedTxn.type,
@@ -550,100 +990,17 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
 
-      // Recompute all sale records for this company using the replay engine
       await recomputeCompanySales(existingTxn.company_id);
       await fetchData();
     },
-    [user, transactions, getSupabase, fetchData]
-  );
-
-  const recomputeCompanySales = useCallback(
-    async (companyId: string) => {
-      const supabase = getSupabase();
-      if (!supabase || !user) return;
-
-      // Re-fetch all transactions for this company
-      const { data: txns } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('company_id', companyId)
-        .eq('user_id', user.id)
-        .order('date', { ascending: true })
-        .order('sequence', { ascending: true });
-
-      if (!txns || txns.length === 0) return;
-
-      const rawTxns: RawTransaction[] = txns.map((t: Transaction) => ({
-        id: t.id,
-        type: t.type as 'BUY' | 'SELL',
-        date: t.date,
-        quantity: t.quantity,
-        pricePerShare: t.price_per_share,
-        brokerageRate: t.brokerage_rate,
-        sequence: t.sequence,
-      }));
-
-      const result = replayLedger(rawTxns);
-      if (!result.valid) return;
-
-      // Update all SELL transactions with recalculated values
-      for (const txn of txns) {
-        if (txn.type !== 'SELL') continue;
-        // We need the state just before this sell to get pre_sale_avg_cost
-        // Find the previous transaction in the sorted list
-        const sortedRawTxns = [...rawTxns].sort((a, b) => {
-          const dc = a.date.localeCompare(b.date);
-          if (dc !== 0) return dc;
-          if (a.type === 'BUY' && b.type === 'SELL') return -1;
-          if (a.type === 'SELL' && b.type === 'BUY') return 1;
-          return (a.sequence || 0) - (b.sequence || 0);
-        });
-
-        const txnIdx = sortedRawTxns.findIndex((t) => t.id === txn.id);
-        let preSaleAvgCost = '0';
-
-        if (txnIdx > 0) {
-          const prevId = sortedRawTxns[txnIdx - 1].id;
-          const prevState = result.transactionStates.get(prevId);
-          if (prevState) {
-            preSaleAvgCost = prevState.averagePurchasePrice;
-          }
-        } else {
-          // It's the first transaction and it's a sell - shouldn't happen
-          continue;
-        }
-
-        const saleCalc = calculateSale(
-          txn.quantity,
-          txn.price_per_share,
-          preSaleAvgCost,
-          String(txn.quantity + parseFloat(result.transactionStates.get(txn.id)?.availableShares || '0')),
-          '0', // cost basis doesn't matter for the update fields we need
-          txn.brokerage_rate
-        );
-
-        await supabase
-          .from('transactions')
-          .update({
-            cost_basis_of_sold: parseFloat(saleCalc.costBasisOfSharesSold),
-            realized_profit_loss: parseFloat(saleCalc.realizedProfitLoss),
-            pre_sale_avg_cost: parseFloat(preSaleAvgCost),
-          })
-          .eq('id', txn.id);
-      }
-    },
-    [user, getSupabase]
+    [isConfigured, user, transactions, companies, marketPrices, settings, saveDemoState, computeHoldings, computePortfolioSummary, getSupabase, recomputeCompanySales, fetchData]
   );
 
   const deleteTransaction = useCallback(
     async (id: string) => {
-      const supabase = getSupabase();
-      if (!supabase || !user) throw new Error('Not authenticated');
-
       const existingTxn = transactions.find((t) => t.id === id);
       if (!existingTxn) throw new Error('Transaction not found');
 
-      // Validate deletion doesn't create invalid state
       const companyTxns = transactions
         .filter((t) => t.company_id === existingTxn.company_id)
         .map((t) => ({
@@ -661,14 +1018,28 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         throw new Error(result.error || 'Deletion creates invalid transaction history');
       }
 
+      if (!isConfigured) {
+        const updatedTxns = transactions.filter((t) => t.id !== id);
+        setTransactions(updatedTxns);
+        saveDemoState(companies, updatedTxns, marketPrices);
+
+        const sellingRate = settings?.default_selling_brokerage_rate || 0.005;
+        const holdingsList = computeHoldings(companies, updatedTxns, marketPrices, sellingRate);
+        setHoldings(holdingsList);
+        setPortfolioSummary(computePortfolioSummary(holdingsList));
+        return;
+      }
+
+      const supabase = getSupabase();
+      if (!supabase || !user) throw new Error('Not authenticated');
+
       const { error } = await supabase.from('transactions').delete().eq('id', id);
       if (error) throw error;
 
-      // Recompute sale records
       await recomputeCompanySales(existingTxn.company_id);
       await fetchData();
     },
-    [user, transactions, getSupabase, fetchData, recomputeCompanySales]
+    [isConfigured, user, transactions, companies, marketPrices, settings, saveDemoState, computeHoldings, computePortfolioSummary, getSupabase, recomputeCompanySales, fetchData]
   );
 
   const value: PortfolioContextType = {
