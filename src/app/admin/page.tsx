@@ -1214,17 +1214,19 @@ export default function AdminDashboardPage() {
               <Trash2 className="w-5 h-5" />
               Delete Transaction Record?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs space-y-2">
-              <p>
-                Are you sure you want to permanently delete this{' '}
-                <span className="font-semibold text-foreground">
-                  {deletingTxn?.type} {deletingTxn?.quantity} shares of {deletingTxn?.company?.symbol}
-                </span>{' '}
-                recorded on {deletingTxn && formatDate(deletingTxn.date, 'short')}?
-              </p>
-              <p className="text-muted-foreground">
-                This action is irreversible and will alter the portfolio&apos;s ledger replay basis.
-              </p>
+            <AlertDialogDescription asChild className="text-xs space-y-2">
+              <div>
+                <p>
+                  Are you sure you want to permanently delete this{' '}
+                  <span className="font-semibold text-foreground">
+                    {deletingTxn?.type} {deletingTxn?.quantity} shares of {deletingTxn?.company?.symbol}
+                  </span>{' '}
+                  recorded on {deletingTxn && formatDate(deletingTxn.date, 'short')}?
+                </p>
+                <p className="text-muted-foreground mt-2">
+                  This action is irreversible and will alter the portfolio&apos;s ledger replay basis.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1248,14 +1250,16 @@ export default function AdminDashboardPage() {
               <AlertCircle className="w-5 h-5" />
               Delete User Profile &amp; Data?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs space-y-2">
-              <p>
-                You are about to delete the user account{' '}
-                <span className="font-semibold text-foreground">{deletingUser?.email}</span> (ID: {deletingUser?.id}).
-              </p>
-              <p className="text-rose-600 dark:text-rose-400 font-medium">
-                All associated portfolio holdings, transactions, and settings will be permanently removed.
-              </p>
+            <AlertDialogDescription asChild className="text-xs space-y-2">
+              <div>
+                <p>
+                  You are about to delete the user account{' '}
+                  <span className="font-semibold text-foreground">{deletingUser?.email}</span> (ID: {deletingUser?.id}).
+                </p>
+                <p className="text-rose-600 dark:text-rose-400 font-medium mt-2">
+                  All associated portfolio holdings, transactions, and settings will be permanently removed.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

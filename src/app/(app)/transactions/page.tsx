@@ -821,6 +821,11 @@ export default function TransactionsPage() {
               This action cannot be undone. If deleting this purchase would cause subsequent sales to exceed available inventory, the operation will be rejected.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && (
+            <div className="p-3 text-xs text-rose-600 bg-rose-50 dark:bg-rose-950/50 rounded-lg border border-rose-200 dark:border-rose-900/50">
+              {deleteError}
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction

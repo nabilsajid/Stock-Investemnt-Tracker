@@ -1020,11 +1020,16 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       if (!isConfigured) {
         const updatedTxns = transactions.filter((t) => t.id !== id);
+        const remainingForCompany = updatedTxns.filter((t) => t.company_id === existingTxn.company_id);
+        const updatedComps = remainingForCompany.length === 0
+          ? companies.filter((c) => c.id !== existingTxn.company_id)
+          : companies;
         setTransactions(updatedTxns);
-        saveDemoState(companies, updatedTxns, marketPrices);
+        setCompanies(updatedComps);
+        saveDemoState(updatedComps, updatedTxns, marketPrices);
 
         const sellingRate = settings?.default_selling_brokerage_rate || 0.005;
-        const holdingsList = computeHoldings(companies, updatedTxns, marketPrices, sellingRate);
+        const holdingsList = computeHoldings(updatedComps, updatedTxns, marketPrices, sellingRate);
         setHoldings(holdingsList);
         setPortfolioSummary(computePortfolioSummary(holdingsList));
         return;
@@ -1035,6 +1040,18 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       const { error } = await supabase.from('transactions').delete().eq('id', id);
       if (error) throw error;
+
+      // Clean up orphaned company if no other transactions exist for this company
+      const remainingForCompany = transactions.filter(
+        (t) => t.company_id === existingTxn.company_id && t.id !== id
+      );
+      if (remainingForCompany.length === 0) {
+        try {
+          await supabase.from('companies').delete().eq('id', existingTxn.company_id);
+        } catch (e) {
+          console.warn('Could not auto-cleanup company:', e);
+        }
+      }
 
       await recomputeCompanySales(existingTxn.company_id);
       await fetchData();
