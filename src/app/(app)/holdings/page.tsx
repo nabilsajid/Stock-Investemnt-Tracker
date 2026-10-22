@@ -56,7 +56,8 @@ export default function HoldingsPage() {
   const router = useRouter();
   const { holdings, loading } = usePortfolio();
 
-  // Search & Filter state
+  // Search, Filter & Profit Mode state
+  const [profitMode, setProfitMode] = useState<'net' | 'gross'>('net');
   const [search, setSearch] = useState('');
   const [exchangeFilter, setExchangeFilter] = useState<'ALL' | 'DSE' | 'CSE'>('ALL');
   const [sortBy, setSortBy] = useState<SortOption>('value-desc');
@@ -136,23 +137,39 @@ export default function HoldingsPage() {
             return valA - valB;
           }
           case 'pl-desc': {
-            const plA = a.unrealizedPL ? parseFloat(a.unrealizedPL) : -Infinity;
-            const plB = b.unrealizedPL ? parseFloat(b.unrealizedPL) : -Infinity;
+            const plA = profitMode === 'gross'
+              ? (a.grossUnrealizedPL ? parseFloat(a.grossUnrealizedPL) : -Infinity)
+              : (a.unrealizedPL ? parseFloat(a.unrealizedPL) : -Infinity);
+            const plB = profitMode === 'gross'
+              ? (b.grossUnrealizedPL ? parseFloat(b.grossUnrealizedPL) : -Infinity)
+              : (b.unrealizedPL ? parseFloat(b.unrealizedPL) : -Infinity);
             return plB - plA;
           }
           case 'pl-asc': {
-            const plA = a.unrealizedPL ? parseFloat(a.unrealizedPL) : Infinity;
-            const plB = b.unrealizedPL ? parseFloat(b.unrealizedPL) : Infinity;
+            const plA = profitMode === 'gross'
+              ? (a.grossUnrealizedPL ? parseFloat(a.grossUnrealizedPL) : Infinity)
+              : (a.unrealizedPL ? parseFloat(a.unrealizedPL) : Infinity);
+            const plB = profitMode === 'gross'
+              ? (b.grossUnrealizedPL ? parseFloat(b.grossUnrealizedPL) : Infinity)
+              : (b.unrealizedPL ? parseFloat(b.unrealizedPL) : Infinity);
             return plA - plB;
           }
           case 'pl-pct-desc': {
-            const pctA = a.unrealizedPLPercent ? parseFloat(a.unrealizedPLPercent) : -Infinity;
-            const pctB = b.unrealizedPLPercent ? parseFloat(b.unrealizedPLPercent) : -Infinity;
+            const pctA = profitMode === 'gross'
+              ? (a.grossUnrealizedPLPercent ? parseFloat(a.grossUnrealizedPLPercent) : -Infinity)
+              : (a.unrealizedPLPercent ? parseFloat(a.unrealizedPLPercent) : -Infinity);
+            const pctB = profitMode === 'gross'
+              ? (b.grossUnrealizedPLPercent ? parseFloat(b.grossUnrealizedPLPercent) : -Infinity)
+              : (b.unrealizedPLPercent ? parseFloat(b.unrealizedPLPercent) : -Infinity);
             return pctB - pctA;
           }
           case 'pl-pct-asc': {
-            const pctA = a.unrealizedPLPercent ? parseFloat(a.unrealizedPLPercent) : Infinity;
-            const pctB = b.unrealizedPLPercent ? parseFloat(b.unrealizedPLPercent) : Infinity;
+            const pctA = profitMode === 'gross'
+              ? (a.grossUnrealizedPLPercent ? parseFloat(a.grossUnrealizedPLPercent) : Infinity)
+              : (a.unrealizedPLPercent ? parseFloat(a.unrealizedPLPercent) : Infinity);
+            const pctB = profitMode === 'gross'
+              ? (b.grossUnrealizedPLPercent ? parseFloat(b.grossUnrealizedPLPercent) : Infinity)
+              : (b.unrealizedPLPercent ? parseFloat(b.unrealizedPLPercent) : Infinity);
             return pctA - pctB;
           }
           default:
@@ -163,12 +180,12 @@ export default function HoldingsPage() {
 
   const filteredActiveHoldings = useMemo(
     () => filterAndSort(activeHoldings),
-    [activeHoldings, exchangeFilter, search, sortBy]
+    [activeHoldings, exchangeFilter, search, sortBy, profitMode]
   );
 
   const filteredClosedHoldings = useMemo(
     () => filterAndSort(closedHoldings),
-    [closedHoldings, exchangeFilter, search, sortBy]
+    [closedHoldings, exchangeFilter, search, sortBy, profitMode]
   );
 
   const hasAnyHoldings = holdings.length > 0;
@@ -236,6 +253,32 @@ export default function HoldingsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {/* Gross / Net Profit Toggle */}
+              <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border text-xs">
+                <button
+                  type="button"
+                  onClick={() => setProfitMode('net')}
+                  className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                    profitMode === 'net'
+                      ? 'bg-background text-foreground shadow-sm font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Net Return
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProfitMode('gross')}
+                  className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                    profitMode === 'gross'
+                      ? 'bg-background text-foreground shadow-sm font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Gross Return
+                </button>
+              </div>
+
               {/* Sort By Select */}
               <div className="w-[180px]">
                 <Select
@@ -302,10 +345,15 @@ export default function HoldingsPage() {
                       <thead className="bg-muted/50 text-xs uppercase text-muted-foreground font-medium border-b">
                         <tr>
                           <th className="px-4 py-3.5 font-semibold">Company</th>
-                          <th className="px-3 py-3.5 font-semibold text-right">Purchased</th>
-                          <th className="px-3 py-3.5 font-semibold text-right">Sold</th>
-                          <th className="px-3 py-3.5 font-semibold text-right">Available</th>
-                          <th className="px-3 py-3.5 font-semibold text-right">Avg Cost</th>
+                          <th className="px-3 py-3.5 font-semibold text-right">Shares</th>
+                          <th className="px-3 py-3.5 font-semibold text-right">
+                            {profitMode === 'gross' ? 'Avg Buy Price' : 'Avg Net Cost'}
+                          </th>
+                          <th className="px-3 py-3.5 font-semibold text-right">Market Price</th>
+                          <th className="px-3 py-3.5 font-semibold text-right">Valuation</th>
+                          <th className="px-4 py-3.5 font-semibold text-right">
+                            {profitMode === 'gross' ? 'Gross Unrealized P/L' : 'Net Unrealized P/L'}
+                          </th>
                           <th className="px-3 py-3.5 font-semibold text-right">Min Selling Price</th>
                           <th className="px-4 py-3.5 font-semibold text-center">Actions</th>
                         </tr>
@@ -313,7 +361,23 @@ export default function HoldingsPage() {
                       <tbody className="divide-y divide-border">
                         {filteredActiveHoldings.map((h) => {
                           const hasPrice = h.marketPrice !== null && h.marketPrice !== undefined;
-                          const plColor = getPLColor(h.unrealizedPL);
+
+                          // Profit numbers
+                          const activePL = profitMode === 'gross'
+                            ? (h.grossUnrealizedPL ? parseFloat(h.grossUnrealizedPL) : null)
+                            : (h.unrealizedPL ? parseFloat(h.unrealizedPL) : null);
+                          const activePLPercent = profitMode === 'gross'
+                            ? (h.grossUnrealizedPLPercent ? parseFloat(h.grossUnrealizedPLPercent) : null)
+                            : (h.unrealizedPLPercent ? parseFloat(h.unrealizedPLPercent) : null);
+                          const plColor = activePL !== null ? getPLColor(activePL) : 'text-muted-foreground';
+
+                          const secondaryPL = profitMode === 'gross'
+                            ? (h.unrealizedPL ? parseFloat(h.unrealizedPL) : null)
+                            : (h.grossUnrealizedPL ? parseFloat(h.grossUnrealizedPL) : null);
+
+                          const valuationVal = hasPrice && h.currentMarketValue
+                            ? formatBDT(h.currentMarketValue)
+                            : formatBDT(profitMode === 'gross' ? (h.remainingGrossCost || h.remainingCostBasis) : h.remainingCostBasis);
 
                           return (
                             <tr
@@ -326,29 +390,88 @@ export default function HoldingsPage() {
                                 <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
                                   {h.company.symbol}
                                 </div>
-                                <div className="text-xs text-muted-foreground truncate max-w-[180px]">
+                                <div className="text-xs text-muted-foreground truncate max-w-[170px]">
                                   {h.company.name}
                                 </div>
                               </td>
 
-                              {/* Purchased */}
-                              <td className="px-3 py-3.5 text-right text-muted-foreground">
-                                {formatNumber(h.totalSharesPurchased)}
+                              {/* Shares */}
+                              <td className="px-3 py-3.5 text-right">
+                                <div className="font-medium text-foreground">
+                                  {formatNumber(h.availableShares)}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  Purchased: {formatNumber(h.totalSharesPurchased)}
+                                </div>
                               </td>
 
-                              {/* Sold */}
-                              <td className="px-3 py-3.5 text-right text-muted-foreground">
-                                {formatNumber(h.totalSharesSold)}
-                              </td>
-
-                              {/* Available */}
-                              <td className="px-3 py-3.5 text-right font-medium text-foreground">
-                                {formatNumber(h.availableShares)}
-                              </td>
-
-                              {/* Avg Cost */}
+                              {/* Avg Price / Cost */}
                               <td className="px-3 py-3.5 text-right font-medium">
-                                {formatBDT(h.weightedAverageCost)}
+                                <div className="text-foreground">
+                                  {formatBDT(profitMode === 'gross' ? (h.weightedAverageGrossPrice || h.weightedAverageCost) : h.weightedAverageCost)}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  {profitMode === 'gross'
+                                    ? `Net: ${formatBDT(h.weightedAverageCost)}`
+                                    : `Gross: ${formatBDT(h.weightedAverageGrossPrice || h.weightedAverageCost)}`}
+                                </div>
+                              </td>
+
+                              {/* Market Price */}
+                              <td className="px-3 py-3.5 text-right">
+                                {hasPrice ? (
+                                  <span className="font-medium text-foreground">
+                                    {formatBDT(h.marketPrice!.price)}
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenUpdatePrice(h.company.id);
+                                    }}
+                                    className="text-xs text-amber-600 dark:text-amber-400 hover:underline font-medium"
+                                  >
+                                    Set price
+                                  </button>
+                                )}
+                              </td>
+
+                              {/* Valuation */}
+                              <td className="px-3 py-3.5 text-right">
+                                <div className="font-medium text-foreground">
+                                  {valuationVal}
+                                </div>
+                                {!hasPrice && (
+                                  <div className="text-[10px] text-muted-foreground">
+                                    (at cost)
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Unrealized P/L */}
+                              <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                                {activePL !== null ? (
+                                  <div>
+                                    <div className={`font-semibold ${plColor}`}>
+                                      {formatBDT(activePL)}
+                                      {activePLPercent !== null && (
+                                        <span className="ml-1 text-xs">
+                                          ({activePLPercent >= 0 ? '+' : ''}{activePLPercent.toFixed(2)}%)
+                                        </span>
+                                      )}
+                                    </div>
+                                    {secondaryPL !== null && (
+                                      <div className="text-[10px] text-muted-foreground">
+                                        {profitMode === 'gross'
+                                          ? `Net: ${formatBDT(secondaryPL)}`
+                                          : `Gross: ${formatBDT(secondaryPL)}`}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">—</span>
+                                )}
                               </td>
 
                               {/* Minimum Selling Price */}
@@ -405,7 +528,17 @@ export default function HoldingsPage() {
                 <div className="grid grid-cols-1 gap-3 md:hidden">
                   {filteredActiveHoldings.map((h) => {
                     const hasPrice = h.marketPrice !== null && h.marketPrice !== undefined;
-                    const plColor = getPLColor(h.unrealizedPL);
+                    const activePL = profitMode === 'gross'
+                      ? (h.grossUnrealizedPL ? parseFloat(h.grossUnrealizedPL) : null)
+                      : (h.unrealizedPL ? parseFloat(h.unrealizedPL) : null);
+                    const activePLPercent = profitMode === 'gross'
+                      ? (h.grossUnrealizedPLPercent ? parseFloat(h.grossUnrealizedPLPercent) : null)
+                      : (h.unrealizedPLPercent ? parseFloat(h.unrealizedPLPercent) : null);
+                    const plColor = activePL !== null ? getPLColor(activePL) : 'text-muted-foreground';
+
+                    const valuationVal = hasPrice && h.currentMarketValue
+                      ? formatBDT(h.currentMarketValue)
+                      : formatBDT(profitMode === 'gross' ? (h.remainingGrossCost || h.remainingCostBasis) : h.remainingCostBasis);
 
                     return (
                       <Card
@@ -438,21 +571,48 @@ export default function HoldingsPage() {
                           {/* Metric Grid */}
                           <div className="grid grid-cols-3 gap-2 py-2 px-3 rounded-lg bg-muted/40 text-xs">
                             <div>
-                              <div className="text-muted-foreground text-[11px]">Available</div>
+                              <div className="text-muted-foreground text-[11px]">
+                                {profitMode === 'gross' ? 'Avg Gross' : 'Avg Net'}
+                              </div>
                               <div className="font-semibold text-foreground">
-                                {formatNumber(h.availableShares)}
+                                {formatBDT(profitMode === 'gross' ? (h.weightedAverageGrossPrice || h.weightedAverageCost) : h.weightedAverageCost)}
                               </div>
                             </div>
                             <div>
-                              <div className="text-muted-foreground text-[11px]">Avg Cost</div>
+                              <div className="text-muted-foreground text-[11px]">Market Price</div>
                               <div className="font-semibold text-foreground">
-                                {formatBDT(h.weightedAverageCost)}
+                                {hasPrice ? formatBDT(h.marketPrice!.price) : '—'}
                               </div>
                             </div>
                             <div className="text-right">
                               <div className="text-muted-foreground text-[11px]">Min Selling</div>
                               <div className="font-semibold text-emerald-600 dark:text-emerald-400">
                                 {h.availableShares > 0 ? formatBDT(h.breakEvenPrice) : '—'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground text-[11px]">Valuation</div>
+                              <div className="font-semibold text-foreground">
+                                {valuationVal}
+                              </div>
+                            </div>
+                            <div className="col-span-2 text-right">
+                              <div className="text-muted-foreground text-[11px]">
+                                {profitMode === 'gross' ? 'Gross Unrealized' : 'Net Unrealized'}
+                              </div>
+                              <div className={`font-semibold ${plColor}`}>
+                                {activePL !== null ? (
+                                  <>
+                                    {formatBDT(activePL)}
+                                    {activePLPercent !== null && (
+                                      <span className="ml-1 text-[11px]">
+                                        ({activePLPercent >= 0 ? '+' : ''}{activePLPercent.toFixed(1)}%)
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  '—'
+                                )}
                               </div>
                             </div>
                           </div>
@@ -462,7 +622,6 @@ export default function HoldingsPage() {
                             className="flex items-center justify-end pt-1 border-t gap-2"
                             onClick={(e) => e.stopPropagation()}
                           >
-
                             <div className="flex items-center gap-1.5">
                               <Button
                                 size="sm"
@@ -538,16 +697,23 @@ export default function HoldingsPage() {
                               <th className="px-4 py-3 font-semibold">Company</th>
                               <th className="px-3 py-3 font-semibold text-center">Exchange</th>
                               <th className="px-3 py-3 font-semibold text-right">Shares Traded</th>
-                              <th className="px-3 py-3 font-semibold text-right">Total Invested</th>
+                              <th className="px-3 py-3 font-semibold text-right">
+                                {profitMode === 'gross' ? 'Gross Invested' : 'Net Invested'}
+                              </th>
                               <th className="px-3 py-3 font-semibold text-right">Brokerage Paid</th>
-                              <th className="px-4 py-3 font-semibold text-right">Realized P/L</th>
+                              <th className="px-4 py-3 font-semibold text-right">
+                                {profitMode === 'gross' ? 'Gross Realized P/L' : 'Net Realized P/L'}
+                              </th>
                               <th className="px-4 py-3 font-semibold text-center">Action</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
                             {filteredClosedHoldings.map((h) => {
-                              const realizedPLNum = parseFloat(h.totalRealizedPL) || 0;
-                              const realizedPLColor = getPLColor(realizedPLNum);
+                              const netPLNum = parseFloat(h.totalRealizedPL) || 0;
+                              const grossPLNum = h.totalGrossRealizedPL ? parseFloat(h.totalGrossRealizedPL) : netPLNum;
+                              const activeRealizedPL = profitMode === 'gross' ? grossPLNum : netPLNum;
+                              const secondaryRealizedPL = profitMode === 'gross' ? netPLNum : grossPLNum;
+                              const realizedPLColor = getPLColor(activeRealizedPL);
 
                               return (
                                 <tr
@@ -572,15 +738,20 @@ export default function HoldingsPage() {
                                     {formatNumber(h.totalSharesPurchased)} shares
                                   </td>
                                   <td className="px-3 py-3 text-right text-muted-foreground">
-                                    {formatBDT(h.cumulativePurchaseCost)}
+                                    {formatBDT(profitMode === 'gross' ? (h.remainingGrossCost || h.cumulativePurchaseCost) : h.cumulativePurchaseCost)}
                                   </td>
                                   <td className="px-3 py-3 text-right text-muted-foreground">
                                     {formatBDT(h.totalBrokerage)}
                                   </td>
                                   <td className="px-4 py-3 text-right">
-                                    <span className={`font-semibold ${realizedPLColor}`}>
-                                      {formatBDT(realizedPLNum)}
-                                    </span>
+                                    <div className={`font-semibold ${realizedPLColor}`}>
+                                      {formatBDT(activeRealizedPL)}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground">
+                                      {profitMode === 'gross'
+                                        ? `Net: ${formatBDT(secondaryRealizedPL)}`
+                                        : `Gross: ${formatBDT(secondaryRealizedPL)}`}
+                                    </div>
                                   </td>
                                   <td className="px-4 py-3 text-center">
                                     <Button

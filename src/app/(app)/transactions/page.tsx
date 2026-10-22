@@ -59,6 +59,9 @@ import {
 export default function TransactionsPage() {
   const { transactions, companies, editTransaction, deleteTransaction, loading } = usePortfolio();
 
+  // Profit view mode
+  const [profitMode, setProfitMode] = useState<'net' | 'gross'>('net');
+
   // Filters state
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'BUY' | 'SELL'>('ALL');
@@ -233,7 +236,7 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             Transaction History
@@ -241,6 +244,32 @@ export default function TransactionsPage() {
           <p className="text-sm text-muted-foreground mt-0.5">
             Complete audit trail of all stock purchases and sales with realized profits and brokerage costs.
           </p>
+        </div>
+
+        {/* Profit Mode Switcher */}
+        <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border text-xs">
+          <button
+            type="button"
+            onClick={() => setProfitMode('net')}
+            className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+              profitMode === 'net'
+                ? 'bg-background text-foreground shadow-sm font-semibold'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Net Realized P/L
+          </button>
+          <button
+            type="button"
+            onClick={() => setProfitMode('gross')}
+            className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+              profitMode === 'gross'
+                ? 'bg-background text-foreground shadow-sm font-semibold'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Gross Realized P/L
+          </button>
         </div>
       </div>
 
@@ -408,7 +437,9 @@ export default function TransactionsPage() {
                     <th className="px-3 py-3.5 font-semibold text-right">Gross Amount</th>
                     <th className="px-3 py-3.5 font-semibold text-right">Brokerage</th>
                     <th className="px-4 py-3.5 font-semibold text-right">Net Amount</th>
-                    <th className="px-4 py-3.5 font-semibold text-right">Realized P/L</th>
+                    <th className="px-4 py-3.5 font-semibold text-right">
+                      {profitMode === 'gross' ? 'Gross Realized P/L' : 'Net Realized P/L'}
+                    </th>
                     <th className="px-4 py-3.5 font-semibold text-center">Actions</th>
                   </tr>
                 </thead>
@@ -416,7 +447,14 @@ export default function TransactionsPage() {
                   {paginatedTransactions.map((t) => {
                     const comp = companyMap.get(t.company_id);
                     const isBuy = t.type === 'BUY';
-                    const realizedPLColor = getPLColor(t.realized_profit_loss);
+                    const netPL = t.realized_profit_loss ?? 0;
+                    const grossPL =
+                      t.gross_realized_profit_loss !== undefined && t.gross_realized_profit_loss !== null
+                        ? t.gross_realized_profit_loss
+                        : netPL + t.brokerage_amount;
+                    const activePL = profitMode === 'gross' ? grossPL : netPL;
+                    const secondaryPL = profitMode === 'gross' ? netPL : grossPL;
+                    const realizedPLColor = getPLColor(activePL);
 
                     return (
                       <tr key={t.id} className="hover:bg-muted/40 transition-colors">
@@ -476,9 +514,16 @@ export default function TransactionsPage() {
                         {/* Realized P/L (for sells only) */}
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
                           {!isBuy && t.realized_profit_loss !== null ? (
-                            <span className={`font-semibold ${realizedPLColor}`}>
-                              {formatBDT(t.realized_profit_loss)}
-                            </span>
+                            <div>
+                              <span className={`font-semibold ${realizedPLColor}`}>
+                                {formatBDT(activePL)}
+                              </span>
+                              <div className="text-[10px] text-muted-foreground">
+                                {profitMode === 'gross'
+                                  ? `Net: ${formatBDT(secondaryPL)}`
+                                  : `Gross: ${formatBDT(secondaryPL)}`}
+                              </div>
+                            </div>
                           ) : (
                             <span className="text-muted-foreground text-xs">—</span>
                           )}
@@ -523,7 +568,14 @@ export default function TransactionsPage() {
             {paginatedTransactions.map((t) => {
               const comp = companyMap.get(t.company_id);
               const isBuy = t.type === 'BUY';
-              const realizedPLColor = getPLColor(t.realized_profit_loss);
+              const netPL = t.realized_profit_loss ?? 0;
+              const grossPL =
+                t.gross_realized_profit_loss !== undefined && t.gross_realized_profit_loss !== null
+                  ? t.gross_realized_profit_loss
+                  : netPL + t.brokerage_amount;
+              const activePL = profitMode === 'gross' ? grossPL : netPL;
+              const secondaryPL = profitMode === 'gross' ? netPL : grossPL;
+              const realizedPLColor = getPLColor(activePL);
 
               return (
                 <Card key={t.id} className="shadow-sm">
@@ -579,9 +631,14 @@ export default function TransactionsPage() {
                       <div>
                         {!isBuy && t.realized_profit_loss !== null ? (
                           <div className="text-xs">
-                            <span className="text-muted-foreground">P/L: </span>
+                            <span className="text-muted-foreground">
+                              {profitMode === 'gross' ? 'Gross P/L: ' : 'Net P/L: '}
+                            </span>
                             <span className={`font-bold ${realizedPLColor}`}>
-                              {formatBDT(t.realized_profit_loss)}
+                              {formatBDT(activePL)}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground ml-1.5">
+                              ({profitMode === 'gross' ? 'Net' : 'Gross'}: {formatBDT(secondaryPL)})
                             </span>
                           </div>
                         ) : (

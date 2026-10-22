@@ -1,4 +1,4 @@
-import { add, gt, isZero, round2, round4, toDecimal, ZERO } from './decimal';
+import { add, sub, mul, div, gt, isZero, round2, round4, toDecimal, ZERO } from './decimal';
 import { calculatePurchase, calculateSale, calculateWeightedAverage } from './calculator';
 
 export type TransactionType = 'BUY' | 'SELL';
@@ -22,6 +22,11 @@ export interface ReplayState {
   averagePurchasePrice: string;
   totalRealizedPL: string;
   totalBrokeragePaid: string;
+  grossCostBasis?: string;
+  averagePurchasePriceGross?: string;
+  totalGrossRealizedPL?: string;
+  lastRealizedPL?: string;
+  lastGrossRealizedPL?: string;
 }
 
 export interface ReplayResult {
@@ -75,6 +80,9 @@ export function replayLedger(transactions: RawTransaction[]): ReplayResult {
     averagePurchasePrice: round4(ZERO),
     totalRealizedPL: round2(ZERO),
     totalBrokeragePaid: round2(ZERO),
+    grossCostBasis: round2(ZERO),
+    averagePurchasePriceGross: round4(ZERO),
+    totalGrossRealizedPL: round2(ZERO),
   };
 
   const transactionStates = new Map<string, ReplayState>();
@@ -88,6 +96,12 @@ export function replayLedger(transactions: RawTransaction[]): ReplayResult {
         purchase
       );
 
+      const rawGrossAmount = mul(txn.quantity, txn.pricePerShare);
+      const prevGross = currentState.grossCostBasis ? toDecimal(currentState.grossCostBasis) : ZERO;
+      const updatedGrossCost = add(prevGross, rawGrossAmount);
+      const updatedSharesDec = toDecimal(weighted.updatedTotalShares);
+      const avgGrossPrice = isZero(updatedSharesDec) ? ZERO : div(updatedGrossCost, updatedSharesDec);
+
       currentState = {
         availableShares: weighted.updatedTotalShares,
         totalSharesPurchased: add(currentState.totalSharesPurchased, txn.quantity).toString(),
@@ -97,6 +111,11 @@ export function replayLedger(transactions: RawTransaction[]): ReplayResult {
         averagePurchasePrice: weighted.updatedAveragePrice,
         totalRealizedPL: currentState.totalRealizedPL,
         totalBrokeragePaid: round2(add(currentState.totalBrokeragePaid, purchase.brokerageAmount)),
+        grossCostBasis: round2(updatedGrossCost),
+        averagePurchasePriceGross: round4(avgGrossPrice),
+        totalGrossRealizedPL: currentState.totalGrossRealizedPL,
+        lastRealizedPL: undefined,
+        lastGrossRealizedPL: undefined,
       };
     } else if (txn.type === 'SELL') {
       const sellQty = toDecimal(txn.quantity);
@@ -123,6 +142,21 @@ export function replayLedger(transactions: RawTransaction[]): ReplayResult {
       const remShares = sale.remainingShares;
       const isZeroShares = isZero(remShares);
 
+      const avgGross = currentState.averagePurchasePriceGross
+        ? toDecimal(currentState.averagePurchasePriceGross)
+        : toDecimal(currentState.averagePurchasePrice);
+      const grossCostOfSold = isZeroShares
+        ? (currentState.grossCostBasis ? toDecimal(currentState.grossCostBasis) : mul(sellQty, avgGross))
+        : mul(sellQty, avgGross);
+      const grossSellingAmount = mul(sellQty, txn.pricePerShare);
+      const grossRealizedPL = sub(grossSellingAmount, grossCostOfSold);
+      const prevGrossRealized = currentState.totalGrossRealizedPL
+        ? toDecimal(currentState.totalGrossRealizedPL)
+        : ZERO;
+      const updatedTotalGrossRealized = add(prevGrossRealized, grossRealizedPL);
+      const prevGross = currentState.grossCostBasis ? toDecimal(currentState.grossCostBasis) : ZERO;
+      const remGrossCost = isZeroShares ? ZERO : sub(prevGross, grossCostOfSold);
+
       currentState = {
         availableShares: remShares,
         totalSharesPurchased: currentState.totalSharesPurchased,
@@ -132,6 +166,11 @@ export function replayLedger(transactions: RawTransaction[]): ReplayResult {
         averagePurchasePrice: isZeroShares ? round4(ZERO) : currentState.averagePurchasePrice,
         totalRealizedPL: round2(add(currentState.totalRealizedPL, sale.realizedProfitLoss)),
         totalBrokeragePaid: round2(add(currentState.totalBrokeragePaid, sale.sellingBrokerageAmount)),
+        grossCostBasis: isZeroShares ? round2(ZERO) : round2(remGrossCost),
+        averagePurchasePriceGross: isZeroShares ? round4(ZERO) : currentState.averagePurchasePriceGross,
+        totalGrossRealizedPL: round2(updatedTotalGrossRealized),
+        lastRealizedPL: round2(sale.realizedProfitLoss),
+        lastGrossRealizedPL: round2(grossRealizedPL),
       };
     }
 

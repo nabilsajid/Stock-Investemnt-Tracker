@@ -33,7 +33,9 @@ export interface Transaction {
   net_amount: number;
   cost_basis_of_sold: number | null;
   realized_profit_loss: number | null;
+  gross_realized_profit_loss?: number | null;
   pre_sale_avg_cost: number | null;
+  pre_sale_avg_gross_price?: number | null;
   additional_charges: number;
   additional_charges_note: string | null;
   notes: string | null;
@@ -79,15 +81,20 @@ export interface Holding {
   totalSharesSold: number;
   availableShares: number;
   weightedAverageCost: string;
+  weightedAverageGrossPrice?: string;
   breakEvenPrice: string;
   remainingCostBasis: string;
+  remainingGrossCost?: string;
   cumulativePurchaseCost: string;
   totalRealizedPL: string;
+  totalGrossRealizedPL?: string;
   totalBrokerage: string;
   marketPrice: MarketPrice | null;
   currentMarketValue: string | null;
   unrealizedPL: string | null;
   unrealizedPLPercent: string | null;
+  grossUnrealizedPL?: string | null;
+  grossUnrealizedPLPercent?: string | null;
 }
 
 // Portfolio summary type
@@ -97,9 +104,12 @@ export interface PortfolioSummary {
   totalAvailableShares: string;
   cumulativePurchaseCost: string;
   remainingInvestmentCostBasis: string;
+  remainingGrossCostBasis?: string;
   currentMarketValue: string | null;
   totalRealizedProfitLoss: string;
+  totalGrossRealizedProfitLoss?: string;
   totalUnrealizedProfitLoss: string | null;
+  totalGrossUnrealizedProfitLoss?: string | null;
   totalBrokeragePaid: string;
   holdingsCount: number;
 }

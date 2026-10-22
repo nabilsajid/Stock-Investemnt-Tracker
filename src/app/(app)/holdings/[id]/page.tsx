@@ -42,6 +42,9 @@ export default function CompanyDetailsPage() {
 
   const { companies, holdings, transactions, loading } = usePortfolio();
 
+  // Profit view mode state
+  const [profitMode, setProfitMode] = useState<'net' | 'gross'>('net');
+
   // Dialog state
   const [buyDialogOpen, setBuyDialogOpen] = useState(false);
   const [sellDialogOpen, setSellDialogOpen] = useState(false);
@@ -150,8 +153,34 @@ export default function CompanyDetailsPage() {
             </p>
           </div>
 
-          {/* Quick Actions */}
+          {/* Quick Actions & Profit Switcher */}
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Gross / Net Profit Toggle */}
+            <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border text-xs">
+              <button
+                type="button"
+                onClick={() => setProfitMode('net')}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                  profitMode === 'net'
+                    ? 'bg-background text-foreground shadow-sm font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Net Return
+              </button>
+              <button
+                type="button"
+                onClick={() => setProfitMode('gross')}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                  profitMode === 'gross'
+                    ? 'bg-background text-foreground shadow-sm font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Gross Return
+              </button>
+            </div>
+
             <Button
               variant="outline"
               size="sm"
@@ -207,16 +236,26 @@ export default function CompanyDetailsPage() {
         <Card className="shadow-sm">
           <CardHeader className="pb-1 pt-3.5 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
-              <span>Avg Purchase Cost</span>
+              <span>{profitMode === 'gross' ? 'Avg Buy Price (Gross)' : 'Avg Cost Basis (Net)'}</span>
               <Scale className="h-3.5 w-3.5 text-muted-foreground" />
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-3.5">
             <div className="text-xl sm:text-2xl font-bold text-foreground">
-              {holding ? formatBDT(holding.weightedAverageCost) : '৳0.00'}
+              {holding
+                ? formatBDT(
+                    profitMode === 'gross'
+                      ? holding.weightedAverageGrossPrice || holding.weightedAverageCost
+                      : holding.weightedAverageCost
+                  )
+                : '৳0.00'}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Weighted cost basis / share
+              {holding
+                ? profitMode === 'gross'
+                  ? `Net with brokerage: ${formatBDT(holding.weightedAverageCost)}`
+                  : `Gross raw price: ${formatBDT(holding.weightedAverageGrossPrice || holding.weightedAverageCost)}`
+                : 'Weighted cost basis / share'}
             </p>
           </CardContent>
         </Card>
@@ -275,16 +314,24 @@ export default function CompanyDetailsPage() {
         <Card className="shadow-sm">
           <CardHeader className="pb-1 pt-3.5 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
-              <span>Remaining Cost Basis</span>
+              <span>{profitMode === 'gross' ? 'Gross Invested' : 'Net Cost Basis'}</span>
               <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-3.5">
             <div className="text-xl sm:text-2xl font-bold text-foreground">
-              {holding ? formatBDT(holding.remainingCostBasis) : '৳0.00'}
+              {holding
+                ? formatBDT(
+                    profitMode === 'gross'
+                      ? holding.remainingGrossCost || holding.remainingCostBasis
+                      : holding.remainingCostBasis
+                  )
+                : '৳0.00'}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Net capital tied in open shares
+              {profitMode === 'gross'
+                ? `Net: ${holding ? formatBDT(holding.remainingCostBasis) : '৳0.00'}`
+                : `Gross: ${holding ? formatBDT(holding.remainingGrossCost || holding.remainingCostBasis) : '৳0.00'}`}
             </p>
           </CardContent>
         </Card>
@@ -311,17 +358,29 @@ export default function CompanyDetailsPage() {
         <Card className="shadow-sm">
           <CardHeader className="pb-1 pt-3.5 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
-              <span>Realized Profit / Loss</span>
+              <span>{profitMode === 'gross' ? 'Gross Realized P/L' : 'Net Realized P/L'}</span>
               <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-3.5">
-            <div className={`text-xl sm:text-2xl font-bold ${realizedColor}`}>
-              {holding ? formatBDT(holding.totalRealizedPL) : '৳0.00'}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Locked profit from past sales
-            </p>
+            {(() => {
+              const netPL = holding ? parseFloat(holding.totalRealizedPL) : 0;
+              const grossPL = holding && holding.totalGrossRealizedPL ? parseFloat(holding.totalGrossRealizedPL) : netPL;
+              const activePL = profitMode === 'gross' ? grossPL : netPL;
+              const secondaryPL = profitMode === 'gross' ? netPL : grossPL;
+              const col = getPLColor(activePL);
+
+              return (
+                <>
+                  <div className={`text-xl sm:text-2xl font-bold ${col}`}>
+                    {formatBDT(activePL)}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {profitMode === 'gross' ? `Net after fees: ${formatBDT(secondaryPL)}` : `Gross before fees: ${formatBDT(secondaryPL)}`}
+                  </p>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
 
@@ -329,34 +388,51 @@ export default function CompanyDetailsPage() {
         <Card className="shadow-sm">
           <CardHeader className="pb-1 pt-3.5 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
-              <span>Unrealized P/L</span>
+              <span>{profitMode === 'gross' ? 'Gross Unrealized P/L' : 'Net Unrealized P/L'}</span>
               <TrendingDown className="h-3.5 w-3.5 text-muted-foreground" />
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-3.5">
-            {holding?.unrealizedPL !== null && holding?.unrealizedPL !== undefined ? (
-              <>
-                <div className={`text-xl sm:text-2xl font-bold ${unrealizedColor}`}>
-                  {formatBDT(holding.unrealizedPL)}
-                </div>
-                <p className={`text-[11px] font-semibold mt-0.5 ${unrealizedColor}`}>
-                  {formatPercent(holding.unrealizedPLPercent)} net after fees
-                </p>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setUpdatePriceDialogOpen(true)}
-                  className="text-base font-semibold text-amber-600 dark:text-amber-400 hover:underline"
-                >
-                  Enter price
-                </button>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Requires current market price
-                </p>
-              </>
-            )}
+            {(() => {
+              const activePLStr = profitMode === 'gross' ? holding?.grossUnrealizedPL : holding?.unrealizedPL;
+              const activePctStr = profitMode === 'gross' ? holding?.grossUnrealizedPLPercent : holding?.unrealizedPLPercent;
+              const secondaryPLStr = profitMode === 'gross' ? holding?.unrealizedPL : holding?.grossUnrealizedPL;
+
+              if (activePLStr !== null && activePLStr !== undefined) {
+                const activeVal = parseFloat(activePLStr) || 0;
+                const col = getPLColor(activeVal);
+                return (
+                  <>
+                    <div className={`text-xl sm:text-2xl font-bold ${col}`}>
+                      {formatBDT(activeVal)}
+                    </div>
+                    <p className={`text-[11px] font-semibold mt-0.5 ${col}`}>
+                      {formatPercent(activePctStr || 0)} {profitMode === 'gross' ? 'gross return' : 'net after fees'}
+                      {secondaryPLStr && (
+                        <span className="text-muted-foreground font-normal ml-1">
+                          ({profitMode === 'gross' ? 'Net' : 'Gross'}: {formatBDT(parseFloat(secondaryPLStr) || 0)})
+                        </span>
+                      )}
+                    </p>
+                  </>
+                );
+              }
+
+              return (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setUpdatePriceDialogOpen(true)}
+                    className="text-base font-semibold text-amber-600 dark:text-amber-400 hover:underline"
+                  >
+                    Enter price
+                  </button>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Requires current market price
+                  </p>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>

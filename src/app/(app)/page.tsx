@@ -29,11 +29,10 @@ import {
   Calendar,
   Sparkles,
   ChevronRight,
-  Target,
-  Clock,
-  Layers,
+  Info,
 } from 'lucide-react';
 import {
+  cn,
   formatBDT,
   formatDate,
   formatNumber,
@@ -82,6 +81,7 @@ export default function DashboardPage() {
   const [priceDialogOpen, setPriceDialogOpen] = useState(false);
   const [selectedCompanyIdForPrice, setSelectedCompanyIdForPrice] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'positions' | 'chart'>('positions');
+  const [profitMode, setProfitMode] = useState<'net' | 'gross'>('net');
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -108,19 +108,39 @@ export default function DashboardPage() {
 
   // Numerical values for returns
   const investedCapitalNumber = parseFloat(portfolioSummary.remainingInvestmentCostBasis) || 0;
+  const grossInvestedBasisNumber = portfolioSummary.remainingGrossCostBasis
+    ? parseFloat(portfolioSummary.remainingGrossCostBasis)
+    : investedCapitalNumber;
+
   const portfolioValuationNumber = hasLiveValuation
     ? parseFloat(portfolioSummary.currentMarketValue!)
     : investedCapitalNumber;
 
-  const realizedPLNumber = parseFloat(portfolioSummary.totalRealizedProfitLoss) || 0;
-  const unrealizedPLNumber = portfolioSummary.totalUnrealizedProfitLoss !== null
+  // Net P/L values (after deducting buying & selling brokerage commissions)
+  const netRealizedPLNumber = parseFloat(portfolioSummary.totalRealizedProfitLoss) || 0;
+  const netUnrealizedPLNumber = portfolioSummary.totalUnrealizedProfitLoss !== null
     ? parseFloat(portfolioSummary.totalUnrealizedProfitLoss)
     : 0;
-
-  const totalCombinedPLNumber = realizedPLNumber + unrealizedPLNumber;
-  const totalReturnPercent = investedCapitalNumber > 0
-    ? (totalCombinedPLNumber / investedCapitalNumber) * 100
+  const totalNetCombinedPLNumber = netRealizedPLNumber + netUnrealizedPLNumber;
+  const totalNetReturnPercent = investedCapitalNumber > 0
+    ? (totalNetCombinedPLNumber / investedCapitalNumber) * 100
     : 0;
+
+  // Gross P/L values (raw price differences before deducting brokerage commissions)
+  const grossRealizedPLNumber = portfolioSummary.totalGrossRealizedProfitLoss
+    ? parseFloat(portfolioSummary.totalGrossRealizedProfitLoss)
+    : netRealizedPLNumber;
+  const grossUnrealizedPLNumber = portfolioSummary.totalGrossUnrealizedProfitLoss !== null && portfolioSummary.totalGrossUnrealizedProfitLoss !== undefined
+    ? parseFloat(portfolioSummary.totalGrossUnrealizedProfitLoss)
+    : 0;
+  const totalGrossCombinedPLNumber = grossRealizedPLNumber + grossUnrealizedPLNumber;
+  const totalGrossReturnPercent = grossInvestedBasisNumber > 0
+    ? (totalGrossCombinedPLNumber / grossInvestedBasisNumber) * 100
+    : 0;
+
+  // Active view values based on selected profitMode
+  const activeReturnNumber = profitMode === 'gross' ? totalGrossCombinedPLNumber : totalNetCombinedPLNumber;
+  const activeReturnPercent = profitMode === 'gross' ? totalGrossReturnPercent : totalNetReturnPercent;
 
   // Allocation pie chart data (by remaining cost basis)
   const allocationData = useMemo(() => {
@@ -143,20 +163,32 @@ export default function DashboardPage() {
   const plChartData = useMemo(() => {
     return holdings
       .map((h) => {
-        const realized = parseFloat(h.totalRealizedPL) || 0;
-        const unrealized = h.unrealizedPL !== null ? parseFloat(h.unrealizedPL) || 0 : 0;
+        const netRealized = parseFloat(h.totalRealizedPL) || 0;
+        const grossRealized = h.totalGrossRealizedPL ? parseFloat(h.totalGrossRealizedPL) : netRealized;
+        const netUnrealized = h.unrealizedPL !== null ? parseFloat(h.unrealizedPL) || 0 : 0;
+        const grossUnrealized = h.grossUnrealizedPL !== null && h.grossUnrealizedPL !== undefined
+          ? parseFloat(h.grossUnrealizedPL) || 0
+          : netUnrealized;
+
+        const realized = profitMode === 'gross' ? grossRealized : netRealized;
+        const unrealized = profitMode === 'gross' ? grossUnrealized : netUnrealized;
+
         return {
           symbol: h.company.symbol,
           name: h.company.name,
           realized,
           unrealized,
+          grossRealized,
+          grossUnrealized,
+          netRealized,
+          netUnrealized,
           hasUnrealized: h.unrealizedPL !== null,
         };
       })
       .filter((item) => item.realized !== 0 || item.unrealized !== 0)
       .sort((a, b) => b.realized + b.unrealized - (a.realized + a.unrealized))
       .slice(0, 8);
-  }, [holdings]);
+  }, [holdings, profitMode]);
 
   // Last 5 transactions
   const recentTransactions = useMemo(() => {
@@ -204,7 +236,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* 1. Dashboard Header & Quick Action Buttons */}
+      {/* 1. Dashboard Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
@@ -212,7 +244,38 @@ export default function DashboardPage() {
             Real-time portfolio overview &amp; performance metrics
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Global Profit Mode Toggle (Net vs Gross) */}
+          <div className="flex items-center p-0.5 rounded-lg bg-muted border border-border/60 text-xs">
+            <button
+              type="button"
+              onClick={() => setProfitMode('net')}
+              className={cn(
+                'px-2.5 py-1.5 rounded-md font-semibold transition-all flex items-center gap-1.5',
+                profitMode === 'net'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+              title="Net Profit (Calculated after deducting all brokerage commission fees)"
+            >
+              Net Profit
+            </button>
+            <button
+              type="button"
+              onClick={() => setProfitMode('gross')}
+              className={cn(
+                'px-2.5 py-1.5 rounded-md font-semibold transition-all flex items-center gap-1.5',
+                profitMode === 'gross'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+              title="Gross Profit (Raw capital appreciation before brokerage fees)"
+            >
+              Gross Profit
+            </button>
+          </div>
+
           <Button
             onClick={() => handleOpenPriceModal()}
             variant="outline"
@@ -273,7 +336,7 @@ export default function DashboardPage() {
             </div>
             <p className="text-[11px] text-muted-foreground pt-0.5">
               {hasLiveValuation
-                ? `Unrealized: ${formatBDT(unrealizedPLNumber)}`
+                ? `${profitMode === 'gross' ? 'Gross' : 'Net'} Unrealized: ${formatBDT(profitMode === 'gross' ? grossUnrealizedPLNumber : netUnrealizedPLNumber)}`
                 : 'Enter today&apos;s DSE prices for live valuation'}
             </p>
           </CardContent>
@@ -291,11 +354,14 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-1.5">
             <div className="text-2xl font-extrabold text-foreground tracking-tight">
-              {formatBDT(investedCapitalNumber)}
+              {formatBDT(profitMode === 'gross' ? grossInvestedBasisNumber : investedCapitalNumber)}
             </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400">
                 {activeHoldings.length} Active {activeHoldings.length === 1 ? 'Position' : 'Positions'}
+              </span>
+              <span className="text-[10px] text-muted-foreground font-medium">
+                {profitMode === 'gross' ? '(Pure Purchase Cost)' : '(Net with Brokerage)'}
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground pt-0.5">
@@ -304,48 +370,71 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Card 3: Overall Profit / Loss */}
+        {/* Card 3: Overall Profit / Loss (Toggleable between Gross & Net) */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Overall Return
-            </CardTitle>
-            <div
-              className={`p-2 rounded-lg ${
-                totalCombinedPLNumber >= 0
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-              }`}
-            >
-              {totalCombinedPLNumber >= 0 ? (
-                <TrendingUp className="w-4 h-4" />
-              ) : (
-                <TrendingDown className="w-4 h-4" />
-              )}
+            <div className="flex items-center gap-1.5">
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Overall Return
+              </CardTitle>
+            </div>
+            {/* Pill Switcher in card header */}
+            <div className="flex items-center p-0.5 rounded-lg bg-muted border border-border/50 text-[10px]">
+              <button
+                type="button"
+                onClick={() => setProfitMode('net')}
+                className={cn(
+                  'px-1.5 py-0.5 rounded font-semibold transition-all',
+                  profitMode === 'net'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+                title="Net Profit (after brokerage)"
+              >
+                Net
+              </button>
+              <button
+                type="button"
+                onClick={() => setProfitMode('gross')}
+                className={cn(
+                  'px-1.5 py-0.5 rounded font-semibold transition-all',
+                  profitMode === 'gross'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+                title="Gross Profit (before brokerage)"
+              >
+                Gross
+              </button>
             </div>
           </CardHeader>
           <CardContent className="space-y-1.5">
             <div
               className={`text-2xl font-extrabold tracking-tight ${getPLColor(
-                totalCombinedPLNumber
+                activeReturnNumber
               )}`}
             >
-              {formatBDT(totalCombinedPLNumber)}
+              {activeReturnNumber >= 0 ? '+' : ''}{formatBDT(activeReturnNumber)}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span
                 className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${
-                  totalReturnPercent >= 0
+                  activeReturnPercent >= 0
                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                     : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                 }`}
               >
-                {totalReturnPercent >= 0 ? '+' : ''}
-                {totalReturnPercent.toFixed(2)}% Return
+                {activeReturnPercent >= 0 ? '+' : ''}
+                {activeReturnPercent.toFixed(2)}% {profitMode === 'gross' ? 'Gross' : 'Net'}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {profitMode === 'gross' ? 'Before Brokerage' : 'After Brokerage'}
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground pt-0.5">
-              Realized: {formatBDT(realizedPLNumber)} &bull; Unrealized: {formatBDT(unrealizedPLNumber)}
+            <p className="text-[11px] text-muted-foreground pt-0.5 truncate">
+              {profitMode === 'gross'
+                ? `Gross: ${formatBDT(totalGrossCombinedPLNumber)} • Net: ${formatBDT(totalNetCombinedPLNumber)}`
+                : `Net: ${formatBDT(totalNetCombinedPLNumber)} • Gross: ${formatBDT(totalGrossCombinedPLNumber)}`}
             </p>
           </CardContent>
         </Card>
@@ -551,17 +640,43 @@ export default function DashboardPage() {
                 <div>
                   <CardTitle className="text-base font-semibold">Active Positions &amp; Performance</CardTitle>
                   <CardDescription className="text-xs">
-                    Real-time position sizes, break-even targets, and valuation
+                    {profitMode === 'gross'
+                      ? 'Displaying Gross Profit (before deducting brokerage commission)'
+                      : 'Displaying Net Profit (after deducting buying & selling brokerage)'}
                   </CardDescription>
                 </div>
-                <TabsList className="h-8">
-                  <TabsTrigger value="positions" className="text-xs px-3 h-7">
-                    Positions ({activeHoldings.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="chart" className="text-xs px-3 h-7">
-                    P&amp;L Chart
-                  </TabsTrigger>
-                </TabsList>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center p-0.5 rounded-md bg-muted text-[11px] border border-border/50">
+                    <button
+                      type="button"
+                      onClick={() => setProfitMode('net')}
+                      className={cn(
+                        'px-2 py-0.5 rounded font-medium transition-colors',
+                        profitMode === 'net' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground'
+                      )}
+                    >
+                      Net
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProfitMode('gross')}
+                      className={cn(
+                        'px-2 py-0.5 rounded font-medium transition-colors',
+                        profitMode === 'gross' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-muted-foreground'
+                      )}
+                    >
+                      Gross
+                    </button>
+                  </div>
+                  <TabsList className="h-8">
+                    <TabsTrigger value="positions" className="text-xs px-3 h-7">
+                      Positions ({activeHoldings.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="chart" className="text-xs px-3 h-7">
+                      P&amp;L Chart
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
               </div>
             </CardHeader>
 
@@ -591,8 +706,17 @@ export default function DashboardPage() {
                   <div className="space-y-3">
                     {activeHoldings.map((h) => {
                       const hasPrice = h.marketPrice && h.marketPrice.price > 0;
-                      const unrealizedVal = h.unrealizedPL !== null ? parseFloat(h.unrealizedPL) : null;
-                      const unrealizedPct = h.unrealizedPLPercent !== null ? parseFloat(h.unrealizedPLPercent) : null;
+                      const netVal = h.unrealizedPL !== null ? parseFloat(h.unrealizedPL) : null;
+                      const netPct = h.unrealizedPLPercent !== null ? parseFloat(h.unrealizedPLPercent) : null;
+                      const grossVal = h.grossUnrealizedPL !== null && h.grossUnrealizedPL !== undefined
+                        ? parseFloat(h.grossUnrealizedPL)
+                        : netVal;
+                      const grossPct = h.grossUnrealizedPLPercent !== null && h.grossUnrealizedPLPercent !== undefined
+                        ? parseFloat(h.grossUnrealizedPLPercent)
+                        : netPct;
+
+                      const displayPL = profitMode === 'gross' ? grossVal : netVal;
+                      const displayPct = profitMode === 'gross' ? grossPct : netPct;
 
                       return (
                         <div
@@ -637,12 +761,20 @@ export default function DashboardPage() {
                               <span className="font-semibold text-foreground">
                                 {formatBDT(h.weightedAverageCost)}
                               </span>
+                              {h.weightedAverageGrossPrice && (
+                                <span className="text-[10px] text-muted-foreground block">
+                                  Gross: {formatBDT(h.weightedAverageGrossPrice)}
+                                </span>
+                              )}
                             </div>
 
                             <div>
                               <span className="text-muted-foreground block text-[11px]">Break-Even Price</span>
                               <span className="font-semibold text-foreground">
                                 {formatBDT(h.breakEvenPrice)}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground block">
+                                Min sale target
                               </span>
                             </div>
 
@@ -651,6 +783,11 @@ export default function DashboardPage() {
                               <span className="font-semibold text-foreground">
                                 {formatBDT(h.remainingCostBasis)}
                               </span>
+                              {h.remainingGrossCost && (
+                                <span className="text-[10px] text-muted-foreground block">
+                                  Gross: {formatBDT(h.remainingGrossCost)}
+                                </span>
+                              )}
                             </div>
                           </div>
 
@@ -669,12 +806,19 @@ export default function DashboardPage() {
                               )}
                             </div>
 
-                            <div>
-                              {hasPrice && unrealizedVal !== null ? (
-                                <span className={`font-bold ${getPLColor(unrealizedVal)}`}>
-                                  {unrealizedVal >= 0 ? '+' : ''}{formatBDT(unrealizedVal)}
-                                  {unrealizedPct !== null && ` (${unrealizedPct >= 0 ? '+' : ''}${unrealizedPct.toFixed(2)}%)`}
-                                </span>
+                            <div className="text-right">
+                              {hasPrice && displayPL !== null ? (
+                                <div>
+                                  <span className={`font-bold ${getPLColor(displayPL)}`}>
+                                    {displayPL >= 0 ? '+' : ''}{formatBDT(displayPL)}
+                                    {displayPct !== null && ` (${displayPct >= 0 ? '+' : ''}${displayPct.toFixed(2)}%)`}
+                                  </span>
+                                  <div className="text-[10px] text-muted-foreground">
+                                    {profitMode === 'gross'
+                                      ? `Gross (Net: ${netVal !== null ? (netVal >= 0 ? '+' : '') + formatBDT(netVal) : '—'})`
+                                      : `Net (Gross: ${grossVal !== null ? (grossVal >= 0 ? '+' : '') + formatBDT(grossVal) : '—'})`}
+                                  </div>
+                                </div>
                               ) : (
                                 <span className="text-muted-foreground text-[11px]">
                                   Valued at cost
@@ -712,7 +856,7 @@ export default function DashboardPage() {
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-foreground">No P&amp;L Data Yet</p>
                       <p className="text-xs max-w-sm text-muted-foreground">
-                        Once you enter market prices or sell shares, your realized and paper returns per stock will appear here.
+                        Once you enter market prices or sell shares, your {profitMode} profit and loss per stock will appear here.
                       </p>
                     </div>
                     <Button
@@ -726,6 +870,10 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div className="w-full h-64 sm:h-72">
+                    <div className="flex items-center justify-between pb-2 text-xs text-muted-foreground">
+                      <span>Displaying: <strong className="text-foreground capitalize">{profitMode} Profit/Loss</strong></span>
+                      <span className="text-[11px]">{profitMode === 'gross' ? 'Pre-brokerage' : 'After brokerage'}</span>
+                    </div>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={plChartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
@@ -751,15 +899,24 @@ export default function DashboardPage() {
                                 name: string;
                                 realized: number;
                                 unrealized: number;
+                                grossRealized: number;
+                                grossUnrealized: number;
+                                netRealized: number;
+                                netUnrealized: number;
                                 hasUnrealized: boolean;
                               };
                               return (
-                                <div className="bg-popover text-popover-foreground border border-border shadow-lg rounded-lg p-3 text-xs space-y-1.5 min-w-[170px]">
-                                  <p className="font-semibold text-sm">{label}</p>
-                                  <p className="text-muted-foreground truncate max-w-[200px]">
+                                <div className="bg-popover text-popover-foreground border border-border shadow-lg rounded-lg p-3 text-xs space-y-1.5 min-w-[200px]">
+                                  <p className="font-semibold text-sm">
+                                    {label}
+                                  </p>
+                                  <p className="text-muted-foreground truncate max-w-[220px]">
                                     {item?.name}
                                   </p>
                                   <div className="pt-1.5 border-t border-border/60 space-y-1">
+                                    <div className="text-[11px] font-semibold text-foreground">
+                                      {profitMode === 'gross' ? 'Gross (Pre-Brokerage)' : 'Net (Post-Brokerage)'}
+                                    </div>
                                     <p className="flex justify-between items-center gap-3">
                                       <span className="text-muted-foreground">Realized P/L:</span>
                                       <span className={`font-semibold ${getPLColor(item?.realized)}`}>
@@ -780,6 +937,14 @@ export default function DashboardPage() {
                                           : 'No market price'}
                                       </span>
                                     </p>
+                                    <div className="pt-1 border-t border-border/40 text-[10px] text-muted-foreground flex justify-between">
+                                      <span>Alternative mode:</span>
+                                      <span>
+                                        {profitMode === 'gross'
+                                          ? `Net P/L: ${formatBDT(item?.netRealized + item?.netUnrealized)}`
+                                          : `Gross P/L: ${formatBDT(item?.grossRealized + item?.grossUnrealized)}`}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -792,7 +957,7 @@ export default function DashboardPage() {
                           height={32}
                           formatter={(val: string) => (
                             <span className="text-xs text-foreground font-medium capitalize">
-                              {val === 'realized' ? 'Realized P/L' : 'Unrealized P/L'}
+                              {val === 'realized' ? `${profitMode} Realized` : `${profitMode} Unrealized`}
                             </span>
                           )}
                         />

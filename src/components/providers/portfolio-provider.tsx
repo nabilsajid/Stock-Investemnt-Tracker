@@ -56,9 +56,12 @@ const defaultSummary: PortfolioSummary = {
   totalAvailableShares: '0',
   cumulativePurchaseCost: '0',
   remainingInvestmentCostBasis: '0',
+  remainingGrossCostBasis: '0',
   currentMarketValue: null,
   totalRealizedProfitLoss: '0',
+  totalGrossRealizedProfitLoss: '0',
   totalUnrealizedProfitLoss: null,
+  totalGrossUnrealizedProfitLoss: null,
   totalBrokeragePaid: '0',
   holdingsCount: 0,
 };
@@ -215,6 +218,62 @@ const INITIAL_DEMO_SETTINGS: UserSettings = {
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
 
+function enrichTransactionsWithReplay(
+  txns: Transaction[],
+  comps: Company[]
+): Transaction[] {
+  const result: Transaction[] = [];
+  const processedIds = new Set<string>();
+
+  for (const company of comps) {
+    const companyTxns = txns
+      .filter((t) => t.company_id === company.id)
+      .sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date);
+        if (dateCompare !== 0) return dateCompare;
+        return (a.sequence || 0) - (b.sequence || 0);
+      });
+
+    if (companyTxns.length === 0) continue;
+
+    const rawTxns: RawTransaction[] = companyTxns.map((t) => ({
+      id: t.id,
+      type: t.type,
+      date: t.date,
+      quantity: t.quantity,
+      pricePerShare: t.price_per_share,
+      brokerageRate: t.brokerage_rate,
+      sequence: t.sequence,
+    }));
+
+    const { transactionStates } = replayLedger(rawTxns);
+
+    for (const t of companyTxns) {
+      processedIds.add(t.id);
+      const state = transactionStates.get(t.id);
+      if (t.type === 'SELL' && state) {
+        result.push({
+          ...t,
+          gross_realized_profit_loss:
+            state.lastGrossRealizedPL !== undefined ? parseFloat(state.lastGrossRealizedPL) : null,
+          pre_sale_avg_gross_price:
+            state.averagePurchasePriceGross !== undefined ? parseFloat(state.averagePurchasePriceGross) : null,
+        });
+      } else {
+        result.push(t);
+      }
+    }
+  }
+
+  for (const t of txns) {
+    if (!processedIds.has(t.id)) {
+      result.push(t);
+    }
+  }
+
+  return result;
+}
+
 export function PortfolioProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -282,7 +341,8 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
           finalState.costBasis,
           marketPriceVal,
           sellingBrokerageRate,
-          priceRecord?.updated_at || null
+          priceRecord?.updated_at || null,
+          finalState.grossCostBasis
         );
 
         holdingsList.push({
@@ -291,15 +351,20 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
           totalSharesPurchased: parseInt(finalState.totalSharesPurchased, 10),
           totalSharesSold: parseInt(finalState.totalSharesSold, 10),
           weightedAverageCost: finalState.averagePurchasePrice,
+          weightedAverageGrossPrice: finalState.averagePurchasePriceGross || finalState.averagePurchasePrice,
           remainingCostBasis: finalState.costBasis,
+          remainingGrossCost: finalState.grossCostBasis || finalState.costBasis,
           cumulativePurchaseCost: finalState.cumulativePurchaseCost,
           breakEvenPrice: minSelling.breakEvenPrice,
           totalRealizedPL: finalState.totalRealizedPL,
+          totalGrossRealizedPL: finalState.totalGrossRealizedPL || finalState.totalRealizedPL,
           totalBrokerage: finalState.totalBrokeragePaid,
           marketPrice: priceRecord,
           currentMarketValue: unrealized?.currentMarketValue || null,
           unrealizedPL: unrealized?.unrealizedProfitLoss || null,
           unrealizedPLPercent: unrealized?.unrealizedProfitLossPercent || null,
+          grossUnrealizedPL: unrealized?.grossUnrealizedProfitLoss || null,
+          grossUnrealizedPLPercent: unrealized?.grossUnrealizedProfitLossPercent || null,
         });
       }
 
@@ -316,9 +381,12 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       available: String(h.availableShares),
       cumulativeCost: h.cumulativePurchaseCost,
       remainingCostBasis: h.remainingCostBasis,
+      remainingGrossCost: h.remainingGrossCost,
       currentMarketValue: h.currentMarketValue,
       realizedPL: h.totalRealizedPL,
+      grossRealizedPL: h.totalGrossRealizedPL,
       unrealizedPL: h.unrealizedPL,
+      grossUnrealizedPL: h.grossUnrealizedPL,
       totalBrokerage: h.totalBrokerage,
     }));
 
@@ -354,7 +422,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       }
 
       setCompanies(comps);
-      setTransactions(txns);
+      setTransactions(enrichTransactionsWithReplay(txns, comps));
       setMarketPrices(prices);
       setSettings(userSettings);
 
@@ -402,7 +470,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       }
 
       setCompanies(comps);
-      setTransactions(txns);
+      setTransactions(enrichTransactionsWithReplay(txns, comps));
       setMarketPrices(prices);
       setSettings(userSettings);
 
@@ -612,7 +680,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
         const updatedTxns = [...transactions, newTxn];
         setCompanies(updatedComps);
-        setTransactions(updatedTxns);
+        setTransactions(enrichTransactionsWithReplay(updatedTxns, updatedComps));
         saveDemoState(updatedComps, updatedTxns, marketPrices);
 
         const sellingRate = settings?.default_selling_brokerage_rate || 0.005;
@@ -714,7 +782,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         };
 
         const updatedTxns = [...transactions, newTxn];
-        setTransactions(updatedTxns);
+        setTransactions(enrichTransactionsWithReplay(updatedTxns, companies));
         saveDemoState(companies, updatedTxns, marketPrices);
 
         const sellingRate = settings?.default_selling_brokerage_rate || 0.005;
@@ -952,7 +1020,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
           };
         });
 
-        setTransactions(updatedTxns);
+        setTransactions(enrichTransactionsWithReplay(updatedTxns, companies));
         saveDemoState(companies, updatedTxns, marketPrices);
 
         const sellingRate = settings?.default_selling_brokerage_rate || 0.005;
@@ -1024,7 +1092,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         const updatedComps = remainingForCompany.length === 0
           ? companies.filter((c) => c.id !== existingTxn.company_id)
           : companies;
-        setTransactions(updatedTxns);
+        setTransactions(enrichTransactionsWithReplay(updatedTxns, updatedComps));
         setCompanies(updatedComps);
         saveDemoState(updatedComps, updatedTxns, marketPrices);
 

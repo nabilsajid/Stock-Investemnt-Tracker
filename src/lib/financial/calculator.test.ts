@@ -441,4 +441,52 @@ describe('Financial Calculation Engine', () => {
       expect(deleteSellRes.finalState.availableShares).toBe('100');
     });
   });
+
+  describe('H. Gross Profit vs Net Profit Calculations', () => {
+    it('calculates gross unrealized profit without subtracting brokerage', () => {
+      // 100 shares bought at 50 BDT, current market price 60 BDT
+      // Gross cost = 100 * 50 = 5000 BDT
+      // Net cost basis = 5000 + 25 = 5025 BDT (0.5% brokerage)
+      // Market value = 100 * 60 = 6000 BDT
+      // Gross unrealized profit = 6000 - 5000 = 1000 BDT (+20%)
+      // Estimated selling brokerage = 0.5% * 6000 = 30 BDT
+      // Net unrealized profit = 6000 - 30 - 5025 = 945 BDT
+      const unrealized = calculateUnrealized(
+        100,
+        5025,
+        60,
+        0.005,
+        '2026-01-01',
+        5000
+      );
+
+      expect(unrealized.currentMarketValue).toBe('6000.00');
+      expect(unrealized.grossUnrealizedProfitLoss).toBe('1000.00');
+      expect(unrealized.grossUnrealizedProfitLossPercent).toBe('20.00');
+      expect(unrealized.unrealizedProfitLoss).toBe('945.00');
+      expect(unrealized.unrealizedProfitLossPercent).toBe('18.81');
+    });
+
+    it('calculates gross realized profit on sale without deducting brokerage', () => {
+      // Buy 100 shares @ 50 BDT -> gross cost 5000 BDT, net cost 5025 BDT (50.25/share)
+      // Sell 100 shares @ 60 BDT -> gross 6000 BDT, selling brokerage 30 BDT, net 5970 BDT
+      // Gross Realized Profit = 6000 - 5000 = 1000 BDT (+20%)
+      // Net Realized Profit = 5970 - 5025 = 945 BDT
+      const sale = calculateSale(
+        100,
+        60,
+        50.25,
+        100,
+        5025,
+        0.005,
+        50.00
+      );
+
+      expect(sale.grossSellingAmount).toBe('6000.00');
+      expect(sale.grossCostOfSharesSold).toBe('5000.00');
+      expect(sale.grossRealizedProfitLoss).toBe('1000.00');
+      expect(sale.grossRealizedProfitLossPercent).toBe('20.00');
+      expect(sale.realizedProfitLoss).toBe('945.00');
+    });
+  });
 });

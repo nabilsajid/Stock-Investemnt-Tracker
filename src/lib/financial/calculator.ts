@@ -51,16 +51,22 @@ export interface SaleCalculation {
   realizedProfitLossPercent: string; // (realizedPL / costBasis) * 100
   remainingShares: string;
   remainingCostBasis: string; // previous cost basis - cost of sold shares
+  grossCostOfSharesSold?: string; // qty * preSaleAverageGrossPrice
+  grossRealizedProfitLoss?: string; // grossSellingAmount - grossCostOfSharesSold
+  grossRealizedProfitLossPercent?: string;
 }
 
 export interface UnrealizedCalculation {
   availableShares: string;
   remainingCostBasis: string;
+  remainingGrossCost?: string;
   manualMarketPrice: string | null;
   currentMarketValue: string | null; // shares * price
   estimatedSellingBrokerage: string | null; // marketValue * rate
-  unrealizedProfitLoss: string | null; // marketValue - brokerage - costBasis
+  unrealizedProfitLoss: string | null; // net (after selling brokerage & buying brokerage)
   unrealizedProfitLossPercent: string | null;
+  grossUnrealizedProfitLoss?: string | null; // gross (marketValue - remainingGrossCost)
+  grossUnrealizedProfitLossPercent?: string | null;
   priceLastUpdated: string | null; // ISO date string
 }
 
@@ -70,9 +76,12 @@ export interface PortfolioTotals {
   totalAvailableShares: string;
   cumulativePurchaseCost: string;
   remainingInvestmentCostBasis: string;
+  remainingGrossCostBasis?: string;
   currentMarketValue: string | null;
   totalRealizedProfitLoss: string;
+  totalGrossRealizedProfitLoss?: string;
   totalUnrealizedProfitLoss: string | null;
+  totalGrossUnrealizedProfitLoss?: string | null;
   totalBrokeragePaid: string;
 }
 
@@ -154,7 +163,8 @@ export function calculateSale(
   preSaleAverageCost: DecimalInput,
   preSaleAvailableShares: DecimalInput,
   preSaleCostBasis: DecimalInput,
-  sellingBrokerageRate: DecimalInput = '0.005'
+  sellingBrokerageRate: DecimalInput = '0.005',
+  preSaleAverageGrossPrice?: DecimalInput
 ): SaleCalculation {
   const sellQty = toDecimal(sellingQuantity);
   const sellPrice = toDecimal(sellingPricePerShare);
@@ -186,6 +196,13 @@ export function calculateSale(
     ? ZERO
     : sub(preCostBasis, costBasisOfSharesSold);
 
+  const avgGross = preSaleAverageGrossPrice !== undefined ? toDecimal(preSaleAverageGrossPrice) : avgCost;
+  const grossCostOfSharesSold = mul(sellQty, avgGross);
+  const grossRealizedProfitLoss = sub(grossSellingAmount, grossCostOfSharesSold);
+  const grossRealizedProfitLossPercent = isZero(grossCostOfSharesSold)
+    ? ZERO
+    : mul(div(grossRealizedProfitLoss, grossCostOfSharesSold), 100);
+
   return {
     sellingQuantity: sellQty.toString(),
     sellingPricePerShare: round4(sellPrice),
@@ -199,6 +216,9 @@ export function calculateSale(
     realizedProfitLossPercent: round2(realizedProfitLossPercent),
     remainingShares: remainingShares.toString(),
     remainingCostBasis: round2(remainingCostBasis),
+    grossCostOfSharesSold: round2(grossCostOfSharesSold),
+    grossRealizedProfitLoss: round2(grossRealizedProfitLoss),
+    grossRealizedProfitLossPercent: round2(grossRealizedProfitLossPercent),
   };
 }
 
@@ -207,20 +227,27 @@ export function calculateUnrealized(
   remainingCostBasis: DecimalInput,
   manualMarketPrice: DecimalInput | null,
   sellingBrokerageRate: DecimalInput = '0.005',
-  priceLastUpdated: string | null = null
+  priceLastUpdated: string | null = null,
+  remainingGrossCost?: DecimalInput | null
 ): UnrealizedCalculation {
   const shares = toDecimal(availableShares);
   const costBasis = toDecimal(remainingCostBasis);
+  const grossCost = remainingGrossCost !== undefined && remainingGrossCost !== null
+    ? toDecimal(remainingGrossCost)
+    : costBasis;
 
   if (manualMarketPrice === null || manualMarketPrice === undefined) {
     return {
       availableShares: shares.toString(),
       remainingCostBasis: round2(costBasis),
+      remainingGrossCost: round2(grossCost),
       manualMarketPrice: null,
       currentMarketValue: null,
       estimatedSellingBrokerage: null,
       unrealizedProfitLoss: null,
       unrealizedProfitLossPercent: null,
+      grossUnrealizedProfitLoss: null,
+      grossUnrealizedProfitLossPercent: null,
       priceLastUpdated: priceLastUpdated ?? null,
     };
   }
@@ -234,14 +261,22 @@ export function calculateUnrealized(
     ? ZERO
     : mul(div(unrealizedProfitLoss, costBasis), 100);
 
+  const grossUnrealizedProfitLoss = sub(currentMarketValue, grossCost);
+  const grossUnrealizedProfitLossPercent = isZero(grossCost)
+    ? ZERO
+    : mul(div(grossUnrealizedProfitLoss, grossCost), 100);
+
   return {
     availableShares: shares.toString(),
     remainingCostBasis: round2(costBasis),
+    remainingGrossCost: round2(grossCost),
     manualMarketPrice: round4(price),
     currentMarketValue: round2(currentMarketValue),
     estimatedSellingBrokerage: round2(estimatedSellingBrokerage),
     unrealizedProfitLoss: round2(unrealizedProfitLoss),
     unrealizedProfitLossPercent: round2(unrealizedProfitLossPercent),
+    grossUnrealizedProfitLoss: round2(grossUnrealizedProfitLoss),
+    grossUnrealizedProfitLossPercent: round2(grossUnrealizedProfitLossPercent),
     priceLastUpdated: priceLastUpdated ?? null,
   };
 }
@@ -253,9 +288,12 @@ export function calculatePortfolioTotals(
     available: string;
     cumulativeCost: string;
     remainingCostBasis: string;
+    remainingGrossCost?: string;
     currentMarketValue: string | null;
     realizedPL: string;
+    grossRealizedPL?: string;
     unrealizedPL: string | null;
+    grossUnrealizedPL?: string | null;
     totalBrokerage: string;
   }>
 ): PortfolioTotals {
@@ -264,7 +302,9 @@ export function calculatePortfolioTotals(
   let totalAvailableShares = ZERO;
   let cumulativePurchaseCost = ZERO;
   let remainingInvestmentCostBasis = ZERO;
+  let remainingGrossCostBasis = ZERO;
   let totalRealizedProfitLoss = ZERO;
+  let totalGrossRealizedProfitLoss = ZERO;
   let totalBrokeragePaid = ZERO;
 
   let hasAnyActiveMissingPrice = false;
@@ -274,6 +314,7 @@ export function calculatePortfolioTotals(
   let hasAnyActiveMissingUnrealized = false;
   let hasAtLeastOneUnrealized = false;
   let unrealizedPLSum = ZERO;
+  let grossUnrealizedPLSum = ZERO;
 
   for (const h of holdings) {
     totalSharesPurchased = add(totalSharesPurchased, h.totalPurchased);
@@ -281,7 +322,9 @@ export function calculatePortfolioTotals(
     totalAvailableShares = add(totalAvailableShares, h.available);
     cumulativePurchaseCost = add(cumulativePurchaseCost, h.cumulativeCost);
     remainingInvestmentCostBasis = add(remainingInvestmentCostBasis, h.remainingCostBasis);
+    remainingGrossCostBasis = add(remainingGrossCostBasis, h.remainingGrossCost || h.remainingCostBasis);
     totalRealizedProfitLoss = add(totalRealizedProfitLoss, h.realizedPL);
+    totalGrossRealizedProfitLoss = add(totalGrossRealizedProfitLoss, h.grossRealizedPL || h.realizedPL);
     totalBrokeragePaid = add(totalBrokeragePaid, h.totalBrokerage);
 
     const isAvailable = gt(h.available, 0);
@@ -296,6 +339,11 @@ export function calculatePortfolioTotals(
     if (h.unrealizedPL !== null) {
       hasAtLeastOneUnrealized = true;
       unrealizedPLSum = add(unrealizedPLSum, h.unrealizedPL);
+      if (h.grossUnrealizedPL !== null && h.grossUnrealizedPL !== undefined) {
+        grossUnrealizedPLSum = add(grossUnrealizedPLSum, h.grossUnrealizedPL);
+      } else {
+        grossUnrealizedPLSum = add(grossUnrealizedPLSum, h.unrealizedPL);
+      }
     } else if (isAvailable) {
       hasAnyActiveMissingUnrealized = true;
     }
@@ -311,15 +359,23 @@ export function calculatePortfolioTotals(
       ? round2(unrealizedPLSum)
       : null;
 
+  const totalGrossUnrealizedProfitLoss =
+    holdings.length > 0 && hasAtLeastOneUnrealized && !hasAnyActiveMissingUnrealized
+      ? round2(grossUnrealizedPLSum)
+      : null;
+
   return {
     totalSharesPurchased: totalSharesPurchased.toString(),
     totalSharesSold: totalSoldShares.toString(),
     totalAvailableShares: totalAvailableShares.toString(),
     cumulativePurchaseCost: round2(cumulativePurchaseCost),
     remainingInvestmentCostBasis: round2(remainingInvestmentCostBasis),
+    remainingGrossCostBasis: round2(remainingGrossCostBasis),
     currentMarketValue,
     totalRealizedProfitLoss: round2(totalRealizedProfitLoss),
+    totalGrossRealizedProfitLoss: round2(totalGrossRealizedProfitLoss),
     totalUnrealizedProfitLoss,
+    totalGrossUnrealizedProfitLoss,
     totalBrokeragePaid: round2(totalBrokeragePaid),
   };
 }
