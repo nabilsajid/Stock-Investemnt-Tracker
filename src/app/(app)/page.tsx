@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { usePortfolio } from '@/components/providers/portfolio-provider';
 import {
   Card,
@@ -12,6 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Wallet,
   PiggyBank,
@@ -25,6 +27,11 @@ import {
   ArrowDownLeft,
   PieChart as PieChartIcon,
   Calendar,
+  Sparkles,
+  ChevronRight,
+  Target,
+  Clock,
+  Layers,
 } from 'lucide-react';
 import {
   formatBDT,
@@ -48,16 +55,17 @@ import {
 } from 'recharts';
 import { BuyStockDialog } from '@/components/transactions/BuyStockDialog';
 import { SellStockDialog } from '@/components/transactions/SellStockDialog';
+import { UpdatePriceDialog } from '@/components/dialogs/update-price-dialog';
 
 const CHART_COLORS = [
-  '#10b981',
-  '#3b82f6',
-  '#8b5cf6',
-  '#f59e0b',
-  '#ef4444',
-  '#06b6d4',
-  '#ec4899',
-  '#84cc16',
+  '#10b981', // emerald
+  '#3b82f6', // blue
+  '#8b5cf6', // purple
+  '#f59e0b', // amber
+  '#ec4899', // pink
+  '#06b6d4', // cyan
+  '#ef4444', // red
+  '#84cc16', // lime
 ];
 
 export default function DashboardPage() {
@@ -71,16 +79,53 @@ export default function DashboardPage() {
 
   const [buyDialogOpen, setBuyDialogOpen] = useState(false);
   const [sellDialogOpen, setSellDialogOpen] = useState(false);
+  const [priceDialogOpen, setPriceDialogOpen] = useState(false);
+  const [selectedCompanyIdForPrice, setSelectedCompanyIdForPrice] = useState<string | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState<'positions' | 'chart'>('positions');
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // Filter for active holdings (stocks with available shares > 0)
+  const activeHoldings = useMemo(() => {
+    return holdings.filter((h) => h.availableShares > 0);
+  }, [holdings]);
+
+  // Total shares held across all active positions
+  const totalSharesHeld = useMemo(() => {
+    return activeHoldings.reduce((sum, h) => sum + h.availableShares, 0);
+  }, [activeHoldings]);
+
+  // Check if any active holding is missing a market price
+  const missingPriceHoldings = useMemo(() => {
+    return activeHoldings.filter((h) => !h.marketPrice || !h.marketPrice.price);
+  }, [activeHoldings]);
+
+  const hasMissingPrices = missingPriceHoldings.length > 0;
+  const hasLiveValuation = portfolioSummary.currentMarketValue !== null;
+
+  // Numerical values for returns
+  const investedCapitalNumber = parseFloat(portfolioSummary.remainingInvestmentCostBasis) || 0;
+  const portfolioValuationNumber = hasLiveValuation
+    ? parseFloat(portfolioSummary.currentMarketValue!)
+    : investedCapitalNumber;
+
+  const realizedPLNumber = parseFloat(portfolioSummary.totalRealizedProfitLoss) || 0;
+  const unrealizedPLNumber = portfolioSummary.totalUnrealizedProfitLoss !== null
+    ? parseFloat(portfolioSummary.totalUnrealizedProfitLoss)
+    : 0;
+
+  const totalCombinedPLNumber = realizedPLNumber + unrealizedPLNumber;
+  const totalReturnPercent = investedCapitalNumber > 0
+    ? (totalCombinedPLNumber / investedCapitalNumber) * 100
+    : 0;
+
   // Allocation pie chart data (by remaining cost basis)
   const allocationData = useMemo(() => {
-    return holdings
-      .filter((h) => h.availableShares > 0 && parseFloat(h.remainingCostBasis) > 0)
+    return activeHoldings
+      .filter((h) => parseFloat(h.remainingCostBasis) > 0)
       .map((h) => ({
         name: h.company.symbol,
         fullName: h.company.name,
@@ -88,7 +133,7 @@ export default function DashboardPage() {
         shares: h.availableShares,
       }))
       .sort((a, b) => b.value - a.value);
-  }, [holdings]);
+  }, [activeHoldings]);
 
   const totalAllocationValue = useMemo(() => {
     return allocationData.reduce((acc, curr) => acc + curr.value, 0);
@@ -124,12 +169,14 @@ export default function DashboardPage() {
       .slice(0, 5);
   }, [transactions]);
 
-  // Realized P/L numerical value for direction icon
-  const realizedPLNumber = parseFloat(portfolioSummary.totalRealizedProfitLoss) || 0;
+  const handleOpenPriceModal = (companyId?: string) => {
+    setSelectedCompanyIdForPrice(companyId || (activeHoldings.length > 0 ? activeHoldings[0].company.id : undefined));
+    setPriceDialogOpen(true);
+  };
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-2">
             <Skeleton className="h-8 w-48" />
@@ -138,16 +185,17 @@ export default function DashboardPage() {
           <div className="flex gap-2">
             <Skeleton className="h-10 w-28" />
             <Skeleton className="h-10 w-28" />
+            <Skeleton className="h-10 w-28" />
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-80 rounded-xl" />
-          <Skeleton className="h-80 rounded-xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <Skeleton className="lg:col-span-5 h-96 rounded-xl" />
+          <Skeleton className="lg:col-span-7 h-96 rounded-xl" />
         </div>
         <Skeleton className="h-64 rounded-xl" />
       </div>
@@ -155,14 +203,24 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* 1. Header & 2. Quick Action Buttons */}
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* 1. Dashboard Header & Quick Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Your investment overview</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Real-time portfolio overview &amp; performance metrics
+          </p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => handleOpenPriceModal()}
+            variant="outline"
+            className="gap-2 border-primary/30 text-primary hover:bg-primary/5 shadow-sm"
+          >
+            <TrendingUp className="w-4 h-4" />
+            Update Prices
+          </Button>
           <Button
             onClick={() => setBuyDialogOpen(true)}
             className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500 shadow-sm"
@@ -181,143 +239,190 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 3. KPI Summary Cards (Grid of 6) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {/* Portfolio Value */}
-        <Card className="hover:shadow-md transition-shadow">
+      {/* 2. Reorganized KPI Summary Cards (4 Balanced Columns, No Truncation) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Portfolio Value */}
+        <Card className="hover:shadow-md transition-shadow relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Portfolio Value</CardTitle>
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Portfolio Value
+            </CardTitle>
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
               <Wallet className="w-4 h-4" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold truncate">
-              {portfolioSummary.currentMarketValue !== null
-                ? formatBDT(portfolioSummary.currentMarketValue)
-                : 'No prices entered'}
+          <CardContent className="space-y-1.5">
+            <div className="text-2xl font-extrabold text-foreground tracking-tight">
+              {formatBDT(portfolioValuationNumber)}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">Current valuation</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              {hasLiveValuation ? (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  Live Valuation
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleOpenPriceModal()}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-500/20 transition-colors"
+                  title="Click to enter current market prices"
+                >
+                  At Cost Basis &bull; Set Price
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground pt-0.5">
+              {hasLiveValuation
+                ? `Unrealized: ${formatBDT(unrealizedPLNumber)}`
+                : 'Enter today&apos;s DSE prices for live valuation'}
+            </p>
           </CardContent>
         </Card>
 
-        {/* Invested Capital */}
+        {/* Card 2: Total Invested Capital */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Invested Capital</CardTitle>
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Invested Capital
+            </CardTitle>
             <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
               <PiggyBank className="w-4 h-4" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold truncate">
-              {formatBDT(portfolioSummary.remainingInvestmentCostBasis)}
+          <CardContent className="space-y-1.5">
+            <div className="text-2xl font-extrabold text-foreground tracking-tight">
+              {formatBDT(investedCapitalNumber)}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">Remaining cost basis</p>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                {activeHoldings.length} Active {activeHoldings.length === 1 ? 'Position' : 'Positions'}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground pt-0.5">
+              {totalSharesHeld} total shares held in portfolio
+            </p>
           </CardContent>
         </Card>
 
-        {/* Realized P/L */}
+        {/* Card 3: Overall Profit / Loss */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Realized P/L</CardTitle>
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Overall Return
+            </CardTitle>
             <div
               className={`p-2 rounded-lg ${
-                realizedPLNumber >= 0
+                totalCombinedPLNumber >= 0
                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                   : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
               }`}
             >
-              {realizedPLNumber >= 0 ? (
+              {totalCombinedPLNumber >= 0 ? (
                 <TrendingUp className="w-4 h-4" />
               ) : (
                 <TrendingDown className="w-4 h-4" />
               )}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-1.5">
             <div
-              className={`text-lg font-bold truncate ${getPLColor(
-                portfolioSummary.totalRealizedProfitLoss
+              className={`text-2xl font-extrabold tracking-tight ${getPLColor(
+                totalCombinedPLNumber
               )}`}
             >
-              {formatBDT(portfolioSummary.totalRealizedProfitLoss)}
+              {formatBDT(totalCombinedPLNumber)}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">Net profit from sales</p>
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                  totalReturnPercent >= 0
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                }`}
+              >
+                {totalReturnPercent >= 0 ? '+' : ''}
+                {totalReturnPercent.toFixed(2)}% Return
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground pt-0.5">
+              Realized: {formatBDT(realizedPLNumber)} &bull; Unrealized: {formatBDT(unrealizedPLNumber)}
+            </p>
           </CardContent>
         </Card>
 
-        {/* Unrealized P/L */}
+        {/* Card 4: Brokerage & Trading Fees */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Unrealized P/L</CardTitle>
-            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
-              <BarChart3 className="w-4 h-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-lg font-bold truncate ${
-                portfolioSummary.totalUnrealizedProfitLoss !== null
-                  ? getPLColor(portfolioSummary.totalUnrealizedProfitLoss)
-                  : 'text-muted-foreground font-normal text-sm'
-              }`}
-            >
-              {portfolioSummary.totalUnrealizedProfitLoss !== null
-                ? formatBDT(portfolioSummary.totalUnrealizedProfitLoss)
-                : 'Enter prices'}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-1">Paper gain / loss</p>
-          </CardContent>
-        </Card>
-
-        {/* Active Holdings */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Active Holdings</CardTitle>
-            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <Briefcase className="w-4 h-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold truncate">
-              {portfolioSummary.holdingsCount} {portfolioSummary.holdingsCount === 1 ? 'stock' : 'stocks'}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-1">Open positions</p>
-          </CardContent>
-        </Card>
-
-        {/* Total Brokerage */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Total Brokerage</CardTitle>
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Brokerage Paid
+            </CardTitle>
             <div className="p-2 rounded-lg bg-zinc-500/10 text-zinc-600 dark:text-zinc-400">
               <Receipt className="w-4 h-4" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold truncate">
+          <CardContent className="space-y-1.5">
+            <div className="text-2xl font-extrabold text-foreground tracking-tight">
               {formatBDT(portfolioSummary.totalBrokeragePaid)}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">Trading fees paid</p>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-zinc-500/10 text-zinc-600 dark:text-zinc-400">
+                Avg 0.5% Commission
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground pt-0.5">
+              Incurred across {transactions.length} total trade{transactions.length === 1 ? '' : 's'}
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* 4. Charts Section (Side-by-side on desktop) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Portfolio Allocation Pie/Donut Chart */}
-        <Card className="flex flex-col shadow-sm">
+      {/* 3. Smart Market Price Notification Banner (When active positions need market prices) */}
+      {hasMissingPrices && (
+        <div className="rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 mt-0.5">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="space-y-0.5">
+              <h4 className="text-sm font-semibold text-foreground">
+                Set Current DSE Market Prices
+              </h4>
+              <p className="text-xs text-muted-foreground max-w-2xl">
+                {missingPriceHoldings.map((h) => h.company.symbol).join(', ')} currently valued at purchase cost.
+                Enter today&apos;s closing prices to view live market valuation and paper profit/loss.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => handleOpenPriceModal(missingPriceHoldings[0]?.company.id)}
+            className="bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-600 dark:hover:bg-amber-500 shrink-0 gap-1.5 shadow-sm text-xs"
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            Set Prices Now
+          </Button>
+        </div>
+      )}
+
+      {/* 4. Middle Section: Portfolio Allocation & Active Positions Snapshot */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Portfolio Allocation Donut Chart */}
+        <Card className="lg:col-span-5 flex flex-col shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold flex items-center justify-between">
-              <span>Portfolio Allocation</span>
-              <span className="text-xs font-normal text-muted-foreground">By Invested Basis</span>
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Distribution of capital across active holdings
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-semibold">Portfolio Allocation</CardTitle>
+                <CardDescription className="text-xs">
+                  Distribution of capital across active holdings
+                </CardDescription>
+              </div>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                {activeHoldings.length} {activeHoldings.length === 1 ? 'Holding' : 'Holdings'}
+              </span>
+            </div>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center min-h-[300px]">
+
+          <CardContent className="flex-1 flex flex-col justify-between min-h-[320px] pt-2">
             {!isMounted ? (
               <div className="h-64 flex items-center justify-center">
                 <Skeleton className="w-48 h-48 rounded-full" />
@@ -333,221 +438,413 @@ export default function DashboardPage() {
                 </p>
               </div>
             ) : (
-              <div className="w-full h-64 sm:h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={allocationData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={85}
-                      paddingAngle={3}
-                    >
-                      {allocationData.map((_, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={CHART_COLORS[index % CHART_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload as {
-                            name: string;
-                            fullName: string;
-                            value: number;
-                            shares: number;
-                          };
-                          const percent =
-                            totalAllocationValue > 0
-                              ? (data.value / totalAllocationValue) * 100
-                              : 0;
-                          return (
-                            <div className="bg-popover text-popover-foreground border border-border shadow-lg rounded-lg p-3 text-xs space-y-1">
-                              <p className="font-semibold text-sm">{data.name}</p>
-                              <p className="text-muted-foreground truncate max-w-[200px]">
-                                {data.fullName}
-                              </p>
-                              <div className="pt-1.5 mt-1 border-t border-border/60 space-y-0.5">
-                                <p>
-                                  <span className="text-muted-foreground">Basis: </span>
-                                  <span className="font-medium">{formatBDT(data.value)}</span>
+              <div className="space-y-4">
+                <div className="w-full h-56 sm:h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={allocationData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={3}
+                      >
+                        {allocationData.map((_, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={CHART_COLORS[index % CHART_COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload as {
+                              name: string;
+                              fullName: string;
+                              value: number;
+                              shares: number;
+                            };
+                            const percent =
+                              totalAllocationValue > 0
+                                ? (data.value / totalAllocationValue) * 100
+                                : 0;
+                            return (
+                              <div className="bg-popover text-popover-foreground border border-border shadow-lg rounded-lg p-3 text-xs space-y-1">
+                                <p className="font-semibold text-sm">{data.name}</p>
+                                <p className="text-muted-foreground truncate max-w-[200px]">
+                                  {data.fullName}
                                 </p>
-                                <p>
-                                  <span className="text-muted-foreground">Shares: </span>
-                                  <span className="font-medium">{formatNumber(data.shares)}</span>
-                                </p>
-                                <p>
-                                  <span className="text-muted-foreground">Share of Portfolio: </span>
-                                  <span className="font-semibold text-primary">
-                                    {percent.toFixed(1)}%
-                                  </span>
-                                </p>
+                                <div className="pt-1.5 mt-1 border-t border-border/60 space-y-0.5">
+                                  <p>
+                                    <span className="text-muted-foreground">Basis: </span>
+                                    <span className="font-medium">{formatBDT(data.value)}</span>
+                                  </p>
+                                  <p>
+                                    <span className="text-muted-foreground">Shares: </span>
+                                    <span className="font-medium">{formatNumber(data.shares)}</span>
+                                  </p>
+                                  <p>
+                                    <span className="text-muted-foreground">Share of Portfolio: </span>
+                                    <span className="font-semibold text-primary">
+                                      {percent.toFixed(1)}%
+                                    </span>
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Legend
-                      verticalAlign="bottom"
-                      height={36}
-                      formatter={(value: string) => (
-                        <span className="text-xs text-foreground font-medium">{value}</span>
-                      )}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Legend
+                        verticalAlign="bottom"
+                        height={36}
+                        formatter={(value: string) => (
+                          <span className="text-xs text-foreground font-medium">{value}</span>
+                        )}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Holdings allocation list below chart */}
+                <div className="divide-y divide-border/40 pt-2 border-t text-xs">
+                  {allocationData.map((item, idx) => {
+                    const percent =
+                      totalAllocationValue > 0
+                        ? (item.value / totalAllocationValue) * 100
+                        : 0;
+                    return (
+                      <div key={item.name} className="py-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                          />
+                          <span className="font-bold text-foreground">{item.name}</span>
+                          <span className="text-muted-foreground text-[11px] truncate max-w-[120px]">
+                            {item.fullName}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-semibold text-foreground">{percent.toFixed(1)}%</span>
+                          <span className="text-muted-foreground ml-2">({formatBDT(item.value)})</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Profit / Loss Bar Chart */}
-        <Card className="flex flex-col shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold flex items-center justify-between">
-              <span>Profit &amp; Loss Breakdown</span>
-              <span className="text-xs font-normal text-muted-foreground">Realized vs Unrealized</span>
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Performance breakdown per company (BDT)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center min-h-[300px]">
-            {!isMounted ? (
-              <div className="h-64 flex items-center justify-center">
-                <Skeleton className="w-full h-48" />
-              </div>
-            ) : plChartData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground space-y-2">
-                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 opacity-60" />
+        {/* Right: Active Holdings Snapshot & Performance (Tabbed for Positions vs P&L Chart) */}
+        <Card className="lg:col-span-7 flex flex-col shadow-sm">
+          <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'positions' | 'chart')} className="flex flex-col h-full">
+            <CardHeader className="pb-3 border-b border-border/40">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-semibold">Active Positions &amp; Performance</CardTitle>
+                  <CardDescription className="text-xs">
+                    Real-time position sizes, break-even targets, and valuation
+                  </CardDescription>
                 </div>
-                <p className="text-sm font-medium">No Profit &amp; Loss Data</p>
-                <p className="text-xs max-w-xs">
-                  Realized gains from sales and unrealized gains from current market prices will appear here.
-                </p>
+                <TabsList className="h-8">
+                  <TabsTrigger value="positions" className="text-xs px-3 h-7">
+                    Positions ({activeHoldings.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="chart" className="text-xs px-3 h-7">
+                    P&amp;L Chart
+                  </TabsTrigger>
+                </TabsList>
               </div>
-            ) : (
-              <div className="w-full h-64 sm:h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={plChartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
-                    <XAxis
-                      dataKey="symbol"
-                      tick={{ fontSize: 11 }}
-                      tickLine={false}
-                      axisLine={{ strokeOpacity: 0.2 }}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10 }}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(val: number) =>
-                        formatBDT(val, { decimals: 0, showSymbol: false })
-                      }
-                    />
-                    <RechartsTooltip
-                      content={({ active, payload, label }) => {
-                        if (active && payload && payload.length) {
-                          const item = payload[0]?.payload as {
-                            symbol: string;
-                            name: string;
-                            realized: number;
-                            unrealized: number;
-                            hasUnrealized: boolean;
-                          };
-                          return (
-                            <div className="bg-popover text-popover-foreground border border-border shadow-lg rounded-lg p-3 text-xs space-y-1.5 min-w-[170px]">
-                              <p className="font-semibold text-sm">
-                                {label}
-                              </p>
-                              <p className="text-muted-foreground truncate max-w-[200px]">
-                                {item?.name}
-                              </p>
-                              <div className="pt-1.5 border-t border-border/60 space-y-1">
-                                <p className="flex justify-between items-center gap-3">
-                                  <span className="text-muted-foreground">Realized P/L:</span>
-                                  <span className={`font-semibold ${getPLColor(item?.realized)}`}>
-                                    {formatBDT(item?.realized)}
-                                  </span>
-                                </p>
-                                <p className="flex justify-between items-center gap-3">
-                                  <span className="text-muted-foreground">Unrealized P/L:</span>
-                                  <span
-                                    className={`font-semibold ${
-                                      item?.hasUnrealized
-                                        ? getPLColor(item?.unrealized)
-                                        : 'text-muted-foreground font-normal'
-                                    }`}
-                                  >
-                                    {item?.hasUnrealized
-                                      ? formatBDT(item?.unrealized)
-                                      : 'No market price'}
-                                  </span>
-                                </p>
-                              </div>
+            </CardHeader>
+
+            <CardContent className="flex-1 p-4">
+              <TabsContent value="positions" className="mt-0 space-y-3">
+                {activeHoldings.length === 0 ? (
+                  <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+                      <Briefcase className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-medium text-foreground">No active positions</p>
+                      <p className="text-xs text-muted-foreground">
+                        Buy your first stock to start tracking positions.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => setBuyDialogOpen(true)}
+                      size="sm"
+                      className="mt-2 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                      Buy Stock
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activeHoldings.map((h) => {
+                      const hasPrice = h.marketPrice && h.marketPrice.price > 0;
+                      const unrealizedVal = h.unrealizedPL !== null ? parseFloat(h.unrealizedPL) : null;
+                      const unrealizedPct = h.unrealizedPLPercent !== null ? parseFloat(h.unrealizedPLPercent) : null;
+
+                      return (
+                        <div
+                          key={h.company.id}
+                          className="rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors p-3.5 space-y-3"
+                        >
+                          {/* Top Row: Symbol, Name, Exchange, and Action */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-base text-foreground">
+                                {h.company.symbol}
+                              </span>
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium">
+                                {h.company.exchange || 'DSE'}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground truncate max-w-[160px] sm:max-w-[240px]">
+                                {h.company.name}
+                              </span>
                             </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Legend
-                      verticalAlign="top"
-                      height={32}
-                      formatter={(val: string) => (
-                        <span className="text-xs text-foreground font-medium capitalize">
-                          {val === 'realized' ? 'Realized P/L' : 'Unrealized P/L'}
-                        </span>
-                      )}
-                    />
-                    <Bar
-                      dataKey="realized"
-                      name="realized"
-                      fill="#3b82f6"
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar
-                      dataKey="unrealized"
-                      name="unrealized"
-                      fill="#10b981"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenPriceModal(h.company.id)}
+                              className="h-7 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
+                            >
+                              <TrendingUp className="w-3 h-3" />
+                              {hasPrice ? 'Update Price' : 'Set Price'}
+                            </Button>
+                          </div>
+
+                          {/* Stats Grid: Shares, Avg Cost, Break-Even, Valuation */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/40 text-xs">
+                            <div>
+                              <span className="text-muted-foreground block text-[11px]">Shares Owned</span>
+                              <span className="font-semibold text-foreground">
+                                {formatNumber(h.availableShares)}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span className="text-muted-foreground block text-[11px]">Avg Buy Price</span>
+                              <span className="font-semibold text-foreground">
+                                {formatBDT(h.weightedAverageCost)}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span className="text-muted-foreground block text-[11px]">Break-Even Price</span>
+                              <span className="font-semibold text-foreground">
+                                {formatBDT(h.breakEvenPrice)}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span className="text-muted-foreground block text-[11px]">Invested Basis</span>
+                              <span className="font-semibold text-foreground">
+                                {formatBDT(h.remainingCostBasis)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Valuation / Return Status Bar */}
+                          <div className="flex items-center justify-between text-xs pt-2 border-t border-border/40">
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground text-[11px]">Market Price:</span>
+                              {hasPrice ? (
+                                <span className="font-bold text-foreground">
+                                  {formatBDT(h.marketPrice!.price)}
+                                </span>
+                              ) : (
+                                <span className="text-amber-600 dark:text-amber-400 font-medium text-[11px]">
+                                  Pending market price
+                                </span>
+                              )}
+                            </div>
+
+                            <div>
+                              {hasPrice && unrealizedVal !== null ? (
+                                <span className={`font-bold ${getPLColor(unrealizedVal)}`}>
+                                  {unrealizedVal >= 0 ? '+' : ''}{formatBDT(unrealizedVal)}
+                                  {unrealizedPct !== null && ` (${unrealizedPct >= 0 ? '+' : ''}${unrealizedPct.toFixed(2)}%)`}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-[11px]">
+                                  Valued at cost
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div className="pt-2 flex justify-end">
+                      <Link
+                        href="/holdings"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                      >
+                        View Full Holdings Table
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="chart" className="mt-0">
+                {!isMounted ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <Skeleton className="w-full h-48" />
+                  </div>
+                ) : plChartData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground space-y-3">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                      <BarChart3 className="w-6 h-6 opacity-60" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-foreground">No P&amp;L Data Yet</p>
+                      <p className="text-xs max-w-sm text-muted-foreground">
+                        Once you enter market prices or sell shares, your realized and paper returns per stock will appear here.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleOpenPriceModal()}
+                      className="gap-1.5 text-xs"
+                    >
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      Enter Market Prices
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="w-full h-64 sm:h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={plChartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                        <XAxis
+                          dataKey="symbol"
+                          tick={{ fontSize: 11 }}
+                          tickLine={false}
+                          axisLine={{ strokeOpacity: 0.2 }}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10 }}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(val: number) =>
+                            formatBDT(val, { decimals: 0, showSymbol: false })
+                          }
+                        />
+                        <RechartsTooltip
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              const item = payload[0]?.payload as {
+                                symbol: string;
+                                name: string;
+                                realized: number;
+                                unrealized: number;
+                                hasUnrealized: boolean;
+                              };
+                              return (
+                                <div className="bg-popover text-popover-foreground border border-border shadow-lg rounded-lg p-3 text-xs space-y-1.5 min-w-[170px]">
+                                  <p className="font-semibold text-sm">{label}</p>
+                                  <p className="text-muted-foreground truncate max-w-[200px]">
+                                    {item?.name}
+                                  </p>
+                                  <div className="pt-1.5 border-t border-border/60 space-y-1">
+                                    <p className="flex justify-between items-center gap-3">
+                                      <span className="text-muted-foreground">Realized P/L:</span>
+                                      <span className={`font-semibold ${getPLColor(item?.realized)}`}>
+                                        {formatBDT(item?.realized)}
+                                      </span>
+                                    </p>
+                                    <p className="flex justify-between items-center gap-3">
+                                      <span className="text-muted-foreground">Unrealized P/L:</span>
+                                      <span
+                                        className={`font-semibold ${
+                                          item?.hasUnrealized
+                                            ? getPLColor(item?.unrealized)
+                                            : 'text-muted-foreground font-normal'
+                                        }`}
+                                      >
+                                        {item?.hasUnrealized
+                                          ? formatBDT(item?.unrealized)
+                                          : 'No market price'}
+                                      </span>
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Legend
+                          verticalAlign="top"
+                          height={32}
+                          formatter={(val: string) => (
+                            <span className="text-xs text-foreground font-medium capitalize">
+                              {val === 'realized' ? 'Realized P/L' : 'Unrealized P/L'}
+                            </span>
+                          )}
+                        />
+                        <Bar
+                          dataKey="realized"
+                          name="realized"
+                          fill="#3b82f6"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="unrealized"
+                          name="unrealized"
+                          fill="#10b981"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </TabsContent>
+            </CardContent>
+          </Tabs>
         </Card>
       </div>
 
-      {/* 5. Recent Transactions */}
+      {/* 5. Bottom Section: Recent Ledger Activity */}
       <Card className="shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/40">
           <div>
-            <CardTitle className="text-base font-semibold">Recent Transactions</CardTitle>
+            <CardTitle className="text-base font-semibold">Recent Ledger Activity</CardTitle>
             <CardDescription className="text-xs">
-              Latest 5 activities recorded in your ledger
+              Latest transactions recorded in your investment account
             </CardDescription>
           </div>
+          <Link
+            href="/transactions"
+            className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+          >
+            View All ({transactions.length})
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           {recentTransactions.length === 0 ? (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
                 <Receipt className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <p className="font-medium text-foreground">No transactions yet</p>
+                <p className="font-medium text-foreground">No transactions recorded yet</p>
                 <p className="text-xs text-muted-foreground">
-                  Start by buying your first stock!
+                  When you record buy or sell trades, they will appear here.
                 </p>
               </div>
               <Button
@@ -556,7 +853,7 @@ export default function DashboardPage() {
                 className="mt-2 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 <PlusCircle className="w-4 h-4" />
-                Buy First Stock
+                Record First Buy
               </Button>
             </div>
           ) : (
@@ -646,6 +943,11 @@ export default function DashboardPage() {
       {/* Dialogs */}
       <BuyStockDialog open={buyDialogOpen} onOpenChange={setBuyDialogOpen} />
       <SellStockDialog open={sellDialogOpen} onOpenChange={setSellDialogOpen} />
+      <UpdatePriceDialog
+        open={priceDialogOpen}
+        onOpenChange={setPriceDialogOpen}
+        preselectedCompanyId={selectedCompanyIdForPrice}
+      />
     </div>
   );
 }
